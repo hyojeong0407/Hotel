@@ -68,8 +68,12 @@ public static class HotelBlockoutBuilder
         BuildGuestRoomSlot(rooms.transform, "Room_105", new Vector3(bay1West, 0f, 0f), 180f);
         BuildGuestRoomSlot(rooms.transform, "Room_104", new Vector3(bay2South + RoomWidth, 0f, 0f), 180f);
         BuildOpenBay(rooms.transform, "Front_Desk", bay1West, frontDeskWidth, north: false, includeOuterWall: false);
-        BuildOpenBay(rooms.transform, "Staff_Front_Passage", passageWest, PassageWidth, north: false, includeOuterWall: true);
+        BuildOpenBay(rooms.transform, "Staff_Front_Passage", passageWest, PassageWidth, north: false, includeOuterWall: false);
         BuildUtilityRoomSlot(rooms.transform, "Staff_Room", staffWest, staffRoomWidth);
+
+        // Front_Desk + passage share one open floor with no wall between them, and are closed off on the
+        // building's south (outer) face by a single wall with a ~4m entrance gap centered across that span.
+        BuildSouthEntranceWall(rooms.transform, bay1West, staffWest - bay1West, 4f);
 
         BuildCorridor(corridor.transform, totalWidth);
         BuildElevatorLobby(elevator.transform);
@@ -126,6 +130,27 @@ public static class HotelBlockoutBuilder
                 new Vector3(width / 2f, CeilingHeight / 2f, RoomLength + WallThickness / 2f),
                 new Vector3(width + WallThickness * 2f, CeilingHeight, WallThickness));
         }
+    }
+
+    // South-facing exterior wall for the hotel's main entrance, with a door gap centered across the given span.
+    static void BuildSouthEntranceWall(Transform parent, float westEdgeX, float spanWidth, float doorWidth)
+    {
+        var slot = new GameObject("Front_Entrance_Wall");
+        slot.transform.SetParent(parent);
+        slot.transform.localPosition = new Vector3(westEdgeX, 0f, -RoomLength);
+        Undo.RegisterCreatedObjectUndo(slot, "Build Floor 1");
+
+        float doorCenter = spanWidth / 2f;
+        float doorMin = doorCenter - doorWidth / 2f;
+        float doorMax = doorCenter + doorWidth / 2f;
+
+        MakeBox("Wall_Left", slot.transform,
+            new Vector3(doorMin / 2f, CeilingHeight / 2f, RoomLength + WallThickness / 2f),
+            new Vector3(doorMin, CeilingHeight, WallThickness));
+
+        MakeBox("Wall_Right", slot.transform,
+            new Vector3((doorMax + spanWidth) / 2f, CeilingHeight / 2f, RoomLength + WallThickness / 2f),
+            new Vector3(spanWidth - doorMax, CeilingHeight, WallThickness));
     }
 
     // Local room space: X 0..width, Z 0..length, entry door on the Z=0 wall.
