@@ -254,14 +254,15 @@ public static class HotelBlockoutBuilder
         BuildBed(parent, width, length);
     }
 
-    // Bed sits opposite the bathroom (past its back wall, toward the room's far end), centered on
-    // the room's width, with BedClearance kept clear on all four sides.
+    // Bed is flush against the left wall (the same side as the bathroom, x = 0 — no clearance needed
+    // there since it's already touching the wall), and kept BedClearance past the bathroom's back wall
+    // so it stays close to the bathroom without overlapping it.
     static void BuildBed(Transform parent, float width, float length)
     {
         var bed = new GameObject("Bed");
         bed.transform.SetParent(parent, false);
 
-        float bedX0 = (width - BedWidth) / 2f;
+        float bedX0 = 0f;
         float bedZ0 = BathLength + BedClearance;
 
         MakeBox("Mattress", bed.transform,
