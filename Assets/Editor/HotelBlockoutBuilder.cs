@@ -31,55 +31,94 @@ public static class HotelBlockoutBuilder
         Debug.Log("Room_101 블록아웃 생성 완료: 4.5m x 6m, 천장 2.7m, 화장실 2.2m x 2.6m");
     }
 
+    const float StoryHeight = CeilingHeight + WallThickness; // floor-to-floor vertical offset between stories
+
     [MenuItem("Tools/Hotel Blockout/Build Floor 1 (Full Layout)")]
-    public static void BuildFloor1()
+    public static void BuildFloor1Menu() => BuildFloor(1);
+
+    [MenuItem("Tools/Hotel Blockout/Build Floor 2")]
+    public static void BuildFloor2Menu() => BuildFloor(2);
+
+    [MenuItem("Tools/Hotel Blockout/Build Floor 3")]
+    public static void BuildFloor3Menu() => BuildFloor(3);
+
+    [MenuItem("Tools/Hotel Blockout/Build Floor 4")]
+    public static void BuildFloor4Menu() => BuildFloor(4);
+
+    [MenuItem("Tools/Hotel Blockout/Build Floor 5")]
+    public static void BuildFloor5Menu() => BuildFloor(5);
+
+    [MenuItem("Tools/Hotel Blockout/Build All Floors (1-5)")]
+    public static void BuildAllFloorsMenu()
     {
-        ClearExisting("Floor1_Hotel");
-        var floor = new GameObject("Floor1_Hotel");
-        Undo.RegisterCreatedObjectUndo(floor, "Build Floor 1");
+        for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
+            BuildFloor(floorNumber);
+    }
+
+    // Floor 1 has the ground-level lobby (open front desk/passage behind a single entrance wall).
+    // Floors 2+ reuse the exact same EL/room/corridor/Staff_Room layout, just stacked up by StoryHeight,
+    // with 205-Staff_Room's zone simplified to one closed-off void (no entrance needed above the lobby).
+    static void BuildFloor(int floorNumber)
+    {
+        string floorName = $"Floor{floorNumber}_Hotel";
+        ClearExisting(floorName);
+        var floor = new GameObject(floorName);
+        floor.transform.position = new Vector3(0f, (floorNumber - 1) * StoryHeight, 0f);
+        Undo.RegisterCreatedObjectUndo(floor, "Build Floor " + floorNumber);
 
         var rooms = new GameObject("Rooms");
-        rooms.transform.SetParent(floor.transform);
+        rooms.transform.SetParent(floor.transform, false);
         var corridor = new GameObject("Corridor");
-        corridor.transform.SetParent(floor.transform);
+        corridor.transform.SetParent(floor.transform, false);
         var elevator = new GameObject("Elevator");
-        elevator.transform.SetParent(floor.transform);
+        elevator.transform.SetParent(floor.transform, false);
 
-        // South row: 105 — Front desk (open, no walls) — walkway (open) — Staff room (enclosed) — 104.
+        // South row: x05 — Front desk (open, no walls) — walkway (open) — Staff room (enclosed) — x04.
         const float frontDeskWidth = 3f;
         const float staffRoomWidth = 10f;
-        // North row: 103 — [gap mirroring the open zone below] — 102 (moved to sit opposite Staff_Room) — 101.
+        // North row: x03 — [gap mirroring the open zone below] — x02 (moved to sit opposite Staff_Room) — x01.
 
-        float bay1West = ELWidth + RoomWidth;       // Front_Desk's west edge, also Room_103's east edge
+        float bay1West = ELWidth + RoomWidth;       // Front_Desk's west edge, also Room x03's east edge
         float passageWest = bay1West + frontDeskWidth;
-        float staffWest = passageWest + PassageWidth; // also Room_102's west edge (Room_102 sits opposite Staff_Room)
-        float bay2South = staffWest + staffRoomWidth; // Room_104's west edge
+        float staffWest = passageWest + PassageWidth; // also Room x02's west edge (x02 sits opposite Staff_Room)
+        float bay2South = staffWest + staffRoomWidth;  // Room x04's west edge
 
-        float room101West = staffWest + RoomWidth; // sits right after 102, no gap
-        float totalWidth = Mathf.Max(bay2South + RoomWidth, room101West + RoomWidth);
+        float room1West = staffWest + RoomWidth; // sits right after x02, no gap
+        float totalWidth = Mathf.Max(bay2South + RoomWidth, room1West + RoomWidth);
 
-        // North row (103, 102, 101), doors face south into the corridor
-        BuildGuestRoomSlot(rooms.transform, "Room_103", new Vector3(ELWidth, 0f, CorridorDepth), 0f);
-        BuildOpenBay(rooms.transform, "North_Gap_103_102", bay1West, staffWest - bay1West, north: true, includeOuterWall: true);
-        BuildGuestRoomSlot(rooms.transform, "Room_102", new Vector3(staffWest, 0f, CorridorDepth), 0f);
-        BuildGuestRoomSlot(rooms.transform, "Room_101", new Vector3(room101West, 0f, CorridorDepth), 0f);
+        string RoomName(int d) => "Room_" + (floorNumber * 100 + d);
 
-        // South row (105, Front desk / walkway / Staff room, 104), doors face north into the corridor
-        BuildGuestRoomSlot(rooms.transform, "Room_105", new Vector3(bay1West, 0f, 0f), 180f);
-        BuildGuestRoomSlot(rooms.transform, "Room_104", new Vector3(bay2South + RoomWidth, 0f, 0f), 180f);
-        BuildOpenBay(rooms.transform, "Front_Desk", bay1West, frontDeskWidth, north: false, includeOuterWall: false);
-        BuildOpenBay(rooms.transform, "Staff_Front_Passage", passageWest, PassageWidth, north: false, includeOuterWall: false);
+        // North row (x03, x02, x01), doors face south into the corridor
+        BuildGuestRoomSlot(rooms.transform, RoomName(3), new Vector3(ELWidth, 0f, CorridorDepth), 0f);
+        BuildOpenBay(rooms.transform, "North_Gap_x03_x02", bay1West, staffWest - bay1West, north: true, includeOuterWall: true);
+        BuildGuestRoomSlot(rooms.transform, RoomName(2), new Vector3(staffWest, 0f, CorridorDepth), 0f);
+        BuildGuestRoomSlot(rooms.transform, RoomName(1), new Vector3(room1West, 0f, CorridorDepth), 0f);
+
+        // South row (x05, Front desk / walkway / Staff room, x04), doors face north into the corridor
+        BuildGuestRoomSlot(rooms.transform, RoomName(5), new Vector3(bay1West, 0f, 0f), 180f);
+        BuildGuestRoomSlot(rooms.transform, RoomName(4), new Vector3(bay2South + RoomWidth, 0f, 0f), 180f);
         BuildUtilityRoomSlot(rooms.transform, "Staff_Room", staffWest, staffRoomWidth);
 
-        // Front_Desk + passage share one open floor with no wall between them, and are closed off on the
-        // building's south (outer) face by a single wall with a ~4m entrance gap centered across that span.
-        BuildSouthEntranceWall(rooms.transform, bay1West, staffWest - bay1West, 4f);
+        if (floorNumber == 1)
+        {
+            // Front_Desk + passage share one open floor with no wall between them, and are closed off on the
+            // building's south (outer) face by a single wall with a ~4m entrance gap centered across that span.
+            BuildOpenBay(rooms.transform, "Front_Desk", bay1West, frontDeskWidth, north: false, includeOuterWall: false);
+            BuildOpenBay(rooms.transform, "Staff_Front_Passage", passageWest, PassageWidth, north: false, includeOuterWall: false);
+            BuildSouthEntranceWall(rooms.transform, bay1West, staffWest - bay1West, 4f);
+        }
+        else
+        {
+            // No lobby entrance above the ground floor — just one closed-off void between x05 and Staff_Room.
+            BuildOpenBay(rooms.transform, "West_Void", bay1West, staffWest - bay1West, north: false, includeOuterWall: true);
+        }
 
         BuildCorridor(corridor.transform, totalWidth);
         BuildElevatorLobby(elevator.transform);
 
         FocusOn(floor);
-        Debug.Log("Floor1_Hotel 생성 완료: EL 로비(정사각) + 복도 + 101~105 + 프론트(공란)/통로/스태프룸.");
+        Debug.Log($"{floorName} 생성 완료: EL 로비(정사각) + 복도 + {floorNumber}01~{floorNumber}05 + " +
+            (floorNumber == 1 ? "프론트(공란)/통로/스태프룸." : "빈 공간/스태프룸."));
     }
 
     static void BuildGuestRoomSlot(Transform parent, string name, Vector3 slotPosition, float yRotation)
