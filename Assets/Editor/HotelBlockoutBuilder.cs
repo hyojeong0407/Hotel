@@ -15,6 +15,13 @@ public static class HotelBlockoutBuilder
     const float BathLength = 3f;
     const float BathDoorWidth = 0.8f;
 
+    const float BedWidth = 4f;
+    const float BedDepth = 3f;
+    const float BedHeight = 0.5f;
+    const float BedClearance = 1f; // open space kept around the bed on every side
+    const float BedLegSize = 0.1f;
+    const float BedLegHeight = 0.2f;
+
     const float DoorWidth = 1.3f;
     const float PassageWidth = 7f; // open walkway between Front_Desk and Staff_Room
 
@@ -243,6 +250,34 @@ public static class HotelBlockoutBuilder
         MakeBox("Bath_Wall_Front", bathroom.transform,
             new Vector3(bathDoorMinX / 2f, CeilingHeight / 2f, BathLength),
             new Vector3(bathDoorMinX, CeilingHeight, WallThickness));
+
+        BuildBed(parent, width, length);
+    }
+
+    // Bed sits opposite the bathroom (past its back wall, toward the room's far end), centered on
+    // the room's width, with BedClearance kept clear on all four sides.
+    static void BuildBed(Transform parent, float width, float length)
+    {
+        var bed = new GameObject("Bed");
+        bed.transform.SetParent(parent, false);
+
+        float bedX0 = (width - BedWidth) / 2f;
+        float bedZ0 = BathLength + BedClearance;
+
+        MakeBox("Mattress", bed.transform,
+            new Vector3(bedX0 + BedWidth / 2f, BedLegHeight + BedHeight / 2f, bedZ0 + BedDepth / 2f),
+            new Vector3(BedWidth, BedHeight, BedDepth));
+
+        float legInsetX0 = bedX0 + BedLegSize / 2f;
+        float legInsetX1 = bedX0 + BedWidth - BedLegSize / 2f;
+        float legInsetZ0 = bedZ0 + BedLegSize / 2f;
+        float legInsetZ1 = bedZ0 + BedDepth - BedLegSize / 2f;
+        var legSize = new Vector3(BedLegSize, BedLegHeight, BedLegSize);
+
+        MakeBox("Leg_FrontLeft", bed.transform, new Vector3(legInsetX0, BedLegHeight / 2f, legInsetZ0), legSize);
+        MakeBox("Leg_FrontRight", bed.transform, new Vector3(legInsetX1, BedLegHeight / 2f, legInsetZ0), legSize);
+        MakeBox("Leg_BackLeft", bed.transform, new Vector3(legInsetX0, BedLegHeight / 2f, legInsetZ1), legSize);
+        MakeBox("Leg_BackRight", bed.transform, new Vector3(legInsetX1, BedLegHeight / 2f, legInsetZ1), legSize);
     }
 
     static void BuildCorridor(Transform parent, float totalWidth)
