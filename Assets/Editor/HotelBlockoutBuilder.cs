@@ -4,18 +4,19 @@ using UnityEngine;
 public static class HotelBlockoutBuilder
 {
     const float WallThickness = 0.2f;
-    const float CeilingHeight = 2.7f;
+    const float CeilingHeight = 2.5f;
 
-    const float RoomWidth = 4.5f;   // X, per-bay width (101/102/103/104/105/FS all share this)
-    const float RoomLength = 6f;    // Z, guest room depth
-    const float CorridorDepth = 3f; // Z, hallway between the north and south room rows
-    const float ELWidth = 3f;       // X, elevator lobby strip on the west end
+    const float RoomWidth = 10f;    // X, per-bay width (101/102/103/104/105 all share this)
+    const float RoomLength = 8f;    // Z, guest room depth
+    const float CorridorDepth = 4f; // Z, hallway between the north and south room rows
+    const float ELWidth = 4f;       // X, elevator lobby strip on the west end (square: ELWidth == CorridorDepth)
 
-    const float BathWidth = 2.2f;
-    const float BathLength = 2.6f;
+    const float BathWidth = 3f;
+    const float BathLength = 3f;
     const float BathDoorWidth = 0.8f;
 
-    const float DoorWidth = 0.9f;
+    const float DoorWidth = 1.3f;
+    const float PassageWidth = 7f; // open walkway between Front_Desk and Staff_Room
 
     [MenuItem("Tools/Hotel Blockout/Build Room 101")]
     public static void BuildRoom101()
@@ -44,27 +45,37 @@ public static class HotelBlockoutBuilder
         var elevator = new GameObject("Elevator");
         elevator.transform.SetParent(floor.transform);
 
+        // South row: 105 — Front desk (open, no walls) — walkway (open) — Staff room (enclosed) — 104.
+        const float frontDeskWidth = 3f;
+        const float staffRoomWidth = 10f;
+        // North row: 103 — [gap mirroring the open zone below] — 102 (moved to sit opposite Staff_Room) — 101.
+
+        float bay1West = ELWidth + RoomWidth;       // Front_Desk's west edge, also Room_103's east edge
+        float passageWest = bay1West + frontDeskWidth;
+        float staffWest = passageWest + PassageWidth; // also Room_102's west edge (Room_102 sits opposite Staff_Room)
+        float bay2South = staffWest + staffRoomWidth; // Room_104's west edge
+
+        float room101West = staffWest + RoomWidth; // sits right after 102, no gap
+        float totalWidth = Mathf.Max(bay2South + RoomWidth, room101West + RoomWidth);
+
         // North row (103, 102, 101), doors face south into the corridor
         BuildGuestRoomSlot(rooms.transform, "Room_103", new Vector3(ELWidth, 0f, CorridorDepth), 0f);
-        BuildGuestRoomSlot(rooms.transform, "Room_102", new Vector3(ELWidth + RoomWidth, 0f, CorridorDepth), 0f);
-        BuildGuestRoomSlot(rooms.transform, "Room_101", new Vector3(ELWidth + RoomWidth * 2f, 0f, CorridorDepth), 0f);
+        BuildOpenBay(rooms.transform, "North_Gap_103_102", bay1West, staffWest - bay1West, north: true, includeOuterWall: true);
+        BuildGuestRoomSlot(rooms.transform, "Room_102", new Vector3(staffWest, 0f, CorridorDepth), 0f);
+        BuildGuestRoomSlot(rooms.transform, "Room_101", new Vector3(room101West, 0f, CorridorDepth), 0f);
 
-        // South row (105, Front desk / Staff room, 104), doors face north into the corridor
-        BuildGuestRoomSlot(rooms.transform, "Room_105", new Vector3(ELWidth + RoomWidth, 0f, 0f), 180f);
-        BuildGuestRoomSlot(rooms.transform, "Room_104", new Vector3(ELWidth + RoomWidth * 3f, 0f, 0f), 180f);
+        // South row (105, Front desk / walkway / Staff room, 104), doors face north into the corridor
+        BuildGuestRoomSlot(rooms.transform, "Room_105", new Vector3(bay1West, 0f, 0f), 180f);
+        BuildGuestRoomSlot(rooms.transform, "Room_104", new Vector3(bay2South + RoomWidth, 0f, 0f), 180f);
+        BuildOpenBay(rooms.transform, "Front_Desk", bay1West, frontDeskWidth, north: false, includeOuterWall: false);
+        BuildOpenBay(rooms.transform, "Staff_Front_Passage", passageWest, PassageWidth, north: false, includeOuterWall: true);
+        BuildUtilityRoomSlot(rooms.transform, "Staff_Room", staffWest, staffRoomWidth);
 
-        // The middle south bay (7.5m..12m, between 105 and 104) splits into Front desk (F, next to 105) and Staff room (S, next to 104)
-        const float frontDeskWidth = 1.8f;
-        float staffRoomWidth = RoomWidth - frontDeskWidth;
-        float middleBayWestEdge = ELWidth + RoomWidth * 1f;
-        BuildUtilityRoomSlot(rooms.transform, "Front_Desk", middleBayWestEdge, frontDeskWidth);
-        BuildUtilityRoomSlot(rooms.transform, "Staff_Room", middleBayWestEdge + frontDeskWidth, staffRoomWidth);
-
-        BuildCorridor(corridor.transform);
+        BuildCorridor(corridor.transform, totalWidth);
         BuildElevatorLobby(elevator.transform);
 
         FocusOn(floor);
-        Debug.Log("Floor1_Hotel 생성 완료: EL 로비 + 복도 + 101~105 + 프론트/스태프룸.");
+        Debug.Log("Floor1_Hotel 생성 완료: EL 로비(정사각) + 복도 + 101~105 + 프론트(공란)/통로/스태프룸.");
     }
 
     static void BuildGuestRoomSlot(Transform parent, string name, Vector3 slotPosition, float yRotation)
@@ -88,6 +99,33 @@ public static class HotelBlockoutBuilder
         Undo.RegisterCreatedObjectUndo(slot, "Build Floor 1");
 
         BuildRoomShell(slot.transform, width, RoomLength, includeBathroom: false, doorCenterX: width / 2f);
+    }
+
+    // Open floor space with no interior partitioning — used for the front desk void, the staff/front
+    // walkway, and the reserved gap between 101 and 102. Side walls come for free from whichever
+    // rooms flank it; `includeOuterWall` controls whether the far (exterior-facing) edge gets closed off.
+    static void BuildOpenBay(Transform parent, string name, float westEdgeX, float width, bool north, bool includeOuterWall)
+    {
+        var slot = new GameObject(name);
+        slot.transform.SetParent(parent);
+        float zStart = north ? CorridorDepth : -RoomLength;
+        slot.transform.localPosition = new Vector3(westEdgeX, 0f, zStart);
+        Undo.RegisterCreatedObjectUndo(slot, "Build Floor 1");
+
+        MakeBox("Floor", slot.transform,
+            new Vector3(width / 2f, -WallThickness / 2f, RoomLength / 2f),
+            new Vector3(width, WallThickness, RoomLength));
+
+        MakeBox("Ceiling", slot.transform,
+            new Vector3(width / 2f, CeilingHeight + WallThickness / 2f, RoomLength / 2f),
+            new Vector3(width, WallThickness, RoomLength));
+
+        if (includeOuterWall)
+        {
+            MakeBox("Wall_Outer", slot.transform,
+                new Vector3(width / 2f, CeilingHeight / 2f, RoomLength + WallThickness / 2f),
+                new Vector3(width + WallThickness * 2f, CeilingHeight, WallThickness));
+        }
     }
 
     // Local room space: X 0..width, Z 0..length, entry door on the Z=0 wall.
@@ -140,10 +178,10 @@ public static class HotelBlockoutBuilder
             new Vector3(bathDoorMinX, CeilingHeight, WallThickness));
     }
 
-    static void BuildCorridor(Transform parent)
+    static void BuildCorridor(Transform parent, float totalWidth)
     {
-        float corridorWidth = RoomWidth * 3f;
         float startX = ELWidth;
+        float corridorWidth = totalWidth - startX;
 
         MakeBox("Floor", parent,
             new Vector3(startX + corridorWidth / 2f, -WallThickness / 2f, CorridorDepth / 2f),
@@ -158,10 +196,12 @@ public static class HotelBlockoutBuilder
             new Vector3(WallThickness, CeilingHeight, CorridorDepth));
     }
 
+    // EL lobby is a square matching the corridor depth (ELWidth should equal CorridorDepth), sitting
+    // flush with the corridor rather than spanning the whole building — the room rows no longer reach it.
     static void BuildElevatorLobby(Transform parent)
     {
-        float southZ = -RoomLength;
-        float northZ = CorridorDepth + RoomLength;
+        float southZ = 0f;
+        float northZ = CorridorDepth;
         float depth = northZ - southZ;
         float centerZ = (southZ + northZ) / 2f;
 
