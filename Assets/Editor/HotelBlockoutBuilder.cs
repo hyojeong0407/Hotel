@@ -126,8 +126,11 @@ public static class HotelBlockoutBuilder
 
         if (includeOuterWall)
         {
+            // The exterior edge is local z = RoomLength for north bays (corridor is at z = 0) but
+            // local z = 0 for south bays (corridor is at z = RoomLength) — mirror image of each other.
+            float exteriorZ = north ? RoomLength + WallThickness / 2f : -WallThickness / 2f;
             MakeBox("Wall_Outer", slot.transform,
-                new Vector3(width / 2f, CeilingHeight / 2f, RoomLength + WallThickness / 2f),
+                new Vector3(width / 2f, CeilingHeight / 2f, exteriorZ),
                 new Vector3(width + WallThickness * 2f, CeilingHeight, WallThickness));
         }
     }
@@ -145,11 +148,11 @@ public static class HotelBlockoutBuilder
         float doorMax = doorCenter + doorWidth / 2f;
 
         MakeBox("Wall_Left", slot.transform,
-            new Vector3(doorMin / 2f, CeilingHeight / 2f, RoomLength + WallThickness / 2f),
+            new Vector3(doorMin / 2f, CeilingHeight / 2f, -WallThickness / 2f),
             new Vector3(doorMin, CeilingHeight, WallThickness));
 
         MakeBox("Wall_Right", slot.transform,
-            new Vector3((doorMax + spanWidth) / 2f, CeilingHeight / 2f, RoomLength + WallThickness / 2f),
+            new Vector3((doorMax + spanWidth) / 2f, CeilingHeight / 2f, -WallThickness / 2f),
             new Vector3(spanWidth - doorMax, CeilingHeight, WallThickness));
     }
 
