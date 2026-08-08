@@ -55,6 +55,8 @@ public static class LobbyBarBuilder
             light.color = new Color(0.6f, 0.05f, 0.05f); // 핏빛 조명
             light.intensity = 2f;
             light.range = 7f;
+
+            light.shadows = LightShadows.Soft;
         }
         
         // 4. 주류 진열장 선반 (가로 8m 유지, 천장에 딱 맞춘 2.5m 높이)

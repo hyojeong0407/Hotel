@@ -1,0 +1,6 @@
+{
+    "files.exclude": {
+        "**/*.csproj": true
+    },
+    "files.autoSave": "afterDelay"
+}
