@@ -121,13 +121,28 @@ public static class HotelBlockoutBuilder
     }
 
     // Headless entry point for `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.BuildAllFloorsAndSaveBatch`.
-    // Opens SampleScene, rebuilds Floor1-5, and saves — for scripted runs when no one has the editor open.
+    // Opens SampleScene, rebuilds Floor1-5, reapplies hyojeong0407's dark materials (rebuilding replaces every
+    // object, which would otherwise leave freshly-created ones with the default material), and saves.
     public static void BuildAllFloorsAndSaveBatch()
     {
         var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
         BuildAllFloorsMenu();
+        ReapplyFloorMaterials();
         EditorSceneManager.SaveScene(scene);
         Debug.Log("BuildAllFloorsAndSaveBatch 완료: SampleScene에 저장됨.");
+    }
+
+    static void ReapplyFloorMaterials()
+    {
+        var targets = new System.Collections.Generic.List<GameObject>();
+        for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
+        {
+            var go = GameObject.Find($"Floor{floorNumber}_Hotel");
+            if (go != null)
+                targets.Add(go);
+        }
+        Selection.objects = targets.ToArray();
+        ExteriorMaterialApplier.ApplyMaterials();
     }
 
     // Floor 1 has the ground-level lobby (open front desk/passage behind a single entrance wall).
@@ -354,30 +369,73 @@ public static class HotelBlockoutBuilder
         MakeBox("Wall_Right_Of_Window", wall.transform,
             new Vector3((windowX1 + width) / 2f, (WindowSillHeight + windowTop) / 2f, wallZ),
             new Vector3(width - windowX1, WindowHeight, WallThickness));
+
+        // Glass pane sitting in the opening, and a sill ledge protruding into the room
+        MakeBox("Glass", wall.transform,
+            new Vector3(WindowCenterX, (WindowSillHeight + windowTop) / 2f, wallZ),
+            new Vector3(WindowWidth - 0.1f, WindowHeight - 0.1f, 0.03f));
+
+        MakeBox("Sill_Ledge", wall.transform,
+            new Vector3(WindowCenterX, WindowSillHeight - 0.02f, length - 0.1f),
+            new Vector3(WindowWidth + 0.1f, 0.04f, 0.3f));
     }
 
     static void BuildBathroomFixtures(Transform bathroom)
     {
+        // Tub shell + a wall-mounted faucet at the head end
         MakeBox("Tub", bathroom,
             new Vector3(TubCenterX, TubHeight / 2f, TubCenterZ),
             new Vector3(TubWidth, TubHeight, TubDepth));
 
+        float tubFaucetX = TubCenterX - TubWidth / 2f + 0.3f;
+        MakeCylinder("Tub_Faucet", bathroom,
+            new Vector3(tubFaucetX, TubHeight + 0.12f, TubCenterZ - TubDepth / 2f + 0.05f), 0.04f, 0.22f);
+
+        // Curtain as a row of narrow, alternately-offset panels so it reads as hanging fabric, not a slab
         float curtainZ = TubCenterZ + TubDepth / 2f; // hangs along the tub's front (open) edge
-        MakeBox("Shower_Curtain", bathroom,
-            new Vector3(TubCenterX, CurtainHeight / 2f, curtainZ),
-            new Vector3(TubWidth, CurtainHeight, 0.05f));
+        const int curtainFolds = 7;
+        float foldWidth = TubWidth / curtainFolds;
+        for (int i = 0; i < curtainFolds; i++)
+        {
+            float foldX = TubCenterX - TubWidth / 2f + foldWidth * (i + 0.5f);
+            float foldZ = curtainZ + (i % 2 == 0 ? 0.018f : -0.018f);
+            MakeBox($"Curtain_Fold_{i:00}", bathroom,
+                new Vector3(foldX, CurtainHeight / 2f, foldZ),
+                new Vector3(foldWidth * 0.92f, CurtainHeight, 0.04f));
+        }
 
-        MakeBox("Sink", bathroom,
-            new Vector3(SinkCenterX, SinkHeight / 2f, SinkCenterZ),
-            new Vector3(SinkWidth, SinkHeight, SinkDepth));
+        // Pedestal sink: round basin + pedestal + wall backsplash + faucet, instead of a solid block
+        MakeCylinder("Sink_Pedestal", bathroom,
+            new Vector3(SinkCenterX, 0.325f, SinkCenterZ), 0.12f, 0.65f);
+        MakeCylinder("Sink_Basin", bathroom,
+            new Vector3(SinkCenterX, 0.68f, SinkCenterZ), Mathf.Min(SinkWidth, SinkDepth) * 0.9f, 0.12f);
+        MakeBox("Sink_Backsplash", bathroom,
+            new Vector3(0.15f, 0.75f, SinkCenterZ),
+            new Vector3(0.05f, 0.15f, SinkDepth));
+        MakeCylinder("Sink_Faucet", bathroom,
+            new Vector3(0.3f, 0.85f, SinkCenterZ), 0.03f, 0.15f);
 
+        // Mirror with a thin frame border
         MakeBox("Mirror", bathroom, // mounted on the west wall, above the sink
             new Vector3(0.03f, MirrorElevation + MirrorHeight / 2f, SinkCenterZ),
             new Vector3(0.06f, MirrorHeight, SinkDepth));
+        MakeBox("Mirror_Frame_Top", bathroom,
+            new Vector3(0.05f, MirrorElevation + MirrorHeight + 0.02f, SinkCenterZ),
+            new Vector3(0.1f, 0.04f, SinkDepth + 0.06f));
+        MakeBox("Mirror_Frame_Bottom", bathroom,
+            new Vector3(0.05f, MirrorElevation - 0.02f, SinkCenterZ),
+            new Vector3(0.1f, 0.04f, SinkDepth + 0.06f));
 
-        MakeBox("Toilet", bathroom,
-            new Vector3(ToiletCenterX, ToiletHeight / 2f, ToiletCenterZ),
-            new Vector3(ToiletWidth, ToiletHeight, ToiletDepth));
+        // Toilet: tank against the east wall, bowl + seat toward the room
+        float toiletBowlX = ToiletCenterX - 0.1f;
+        MakeBox("Toilet_Tank", bathroom,
+            new Vector3(ToiletCenterX + ToiletWidth / 2f - 0.08f, 0.55f, ToiletCenterZ),
+            new Vector3(0.16f, 0.4f, ToiletDepth * 0.75f));
+        MakeCylinder("Toilet_Bowl", bathroom,
+            new Vector3(toiletBowlX, 0.19f, ToiletCenterZ), 0.5f, 0.38f);
+        MakeBox("Toilet_Seat", bathroom,
+            new Vector3(toiletBowlX, 0.4f, ToiletCenterZ),
+            new Vector3(0.42f, 0.04f, ToiletDepth * 0.9f));
     }
 
     static void BuildRoomFurniture(Transform parent)
@@ -385,34 +443,128 @@ public static class HotelBlockoutBuilder
         var furniture = new GameObject("Furniture");
         furniture.transform.SetParent(parent, false);
 
-        MakeBox("Wardrobe", furniture.transform,
-            new Vector3(WardrobeCenterX, WardrobeHeight / 2f, WardrobeCenterZ),
-            new Vector3(WardrobeSize, WardrobeHeight, WardrobeSize));
+        BuildWardrobe(furniture.transform);
+        BuildNightstandAndPhone(furniture.transform);
+        BuildArmchair(furniture.transform, "Sofa_1", Sofa1CenterZ);
+        BuildArmchair(furniture.transform, "Sofa_2", Sofa2CenterZ);
 
-        var nightstand = new GameObject("Nightstand_Phone");
-        nightstand.transform.SetParent(furniture.transform, false);
-        MakeBox("Nightstand", nightstand.transform,
-            new Vector3(NightstandCenterX, NightstandHeight / 2f, NightstandCenterZ),
-            new Vector3(NightstandSize, NightstandHeight, NightstandSize));
-        MakeBox("Phone", nightstand.transform,
-            new Vector3(NightstandCenterX, NightstandHeight + 0.05f, NightstandCenterZ),
-            new Vector3(0.3f, 0.1f, 0.2f));
-
-        MakeBox("Sofa_1", furniture.transform,
-            new Vector3(SeatingCenterX, SofaHeight / 2f, Sofa1CenterZ),
-            new Vector3(SofaSize, SofaHeight, SofaSize));
-
-        MakeBox("Side_Table", furniture.transform,
-            new Vector3(SeatingCenterX, TableHeight / 2f, TableCenterZ),
-            new Vector3(TableWidth, TableHeight, TableDepth));
-
-        MakeBox("Sofa_2", furniture.transform,
-            new Vector3(SeatingCenterX, SofaHeight / 2f, Sofa2CenterZ),
-            new Vector3(SofaSize, SofaHeight, SofaSize));
+        MakeCylinder("Table_Leg_FL", furniture.transform, new Vector3(SeatingCenterX - TableWidth / 2f + 0.05f, (TableHeight - 0.05f) / 2f, TableCenterZ - TableDepth / 2f + 0.05f), 0.04f, TableHeight - 0.05f);
+        MakeCylinder("Table_Leg_FR", furniture.transform, new Vector3(SeatingCenterX + TableWidth / 2f - 0.05f, (TableHeight - 0.05f) / 2f, TableCenterZ - TableDepth / 2f + 0.05f), 0.04f, TableHeight - 0.05f);
+        MakeCylinder("Table_Leg_BL", furniture.transform, new Vector3(SeatingCenterX - TableWidth / 2f + 0.05f, (TableHeight - 0.05f) / 2f, TableCenterZ + TableDepth / 2f - 0.05f), 0.04f, TableHeight - 0.05f);
+        MakeCylinder("Table_Leg_BR", furniture.transform, new Vector3(SeatingCenterX + TableWidth / 2f - 0.05f, (TableHeight - 0.05f) / 2f, TableCenterZ + TableDepth / 2f - 0.05f), 0.04f, TableHeight - 0.05f);
+        MakeBox("Side_Table_Top", furniture.transform,
+            new Vector3(SeatingCenterX, TableHeight - 0.025f, TableCenterZ),
+            new Vector3(TableWidth, 0.05f, TableDepth));
 
         MakeBox("TV_Shelf", furniture.transform,
             new Vector3(TvCenterX, TvShelfElevation + TvShelfHeight / 2f, TvCenterZ),
             new Vector3(TvThickness, TvShelfHeight, TvSpan));
+        MakeBox("TV_Screen", furniture.transform,
+            new Vector3(TvCenterX + TvThickness / 2f + 0.03f, TvShelfElevation + 0.75f, TvCenterZ),
+            new Vector3(0.06f, 0.9f, TvSpan * 0.75f));
+    }
+
+    static void BuildWardrobe(Transform parent)
+    {
+        var wardrobe = new GameObject("Wardrobe");
+        wardrobe.transform.SetParent(parent, false);
+
+        MakeBox("Plinth", wardrobe.transform,
+            new Vector3(WardrobeCenterX, 0.05f, WardrobeCenterZ),
+            new Vector3(WardrobeSize, 0.1f, WardrobeSize));
+
+        MakeBox("Cabinet_Body", wardrobe.transform,
+            new Vector3(WardrobeCenterX, 0.1f + (WardrobeHeight - 0.2f) / 2f, WardrobeCenterZ),
+            new Vector3(WardrobeSize - 0.05f, WardrobeHeight - 0.2f, WardrobeSize - 0.05f));
+
+        MakeBox("Cornice", wardrobe.transform,
+            new Vector3(WardrobeCenterX, WardrobeHeight - 0.05f, WardrobeCenterZ),
+            new Vector3(WardrobeSize + 0.05f, 0.1f, WardrobeSize + 0.05f));
+
+        // Two door panels facing +Z (into the room), with a small gap and handles at the inner edges
+        float doorWidth = (WardrobeSize - 0.08f) / 2f;
+        float doorZ = WardrobeCenterZ + WardrobeSize / 2f + 0.02f;
+        float doorY = 0.15f + (WardrobeHeight - 0.5f) / 2f;
+        float door1X = WardrobeCenterX - doorWidth / 2f - 0.02f;
+        float door2X = WardrobeCenterX + doorWidth / 2f + 0.02f;
+
+        MakeBox("Door_Left", wardrobe.transform, new Vector3(door1X, doorY, doorZ), new Vector3(doorWidth, WardrobeHeight - 0.5f, 0.03f));
+        MakeBox("Door_Right", wardrobe.transform, new Vector3(door2X, doorY, doorZ), new Vector3(doorWidth, WardrobeHeight - 0.5f, 0.03f));
+
+        MakeBox("Handle_Left", wardrobe.transform, new Vector3(door1X + doorWidth / 2f - 0.03f, doorY, doorZ + 0.03f), new Vector3(0.04f, 0.15f, 0.04f));
+        MakeBox("Handle_Right", wardrobe.transform, new Vector3(door2X - doorWidth / 2f + 0.03f, doorY, doorZ + 0.03f), new Vector3(0.04f, 0.15f, 0.04f));
+    }
+
+    static void BuildNightstandAndPhone(Transform parent)
+    {
+        var nightstand = new GameObject("Nightstand_Phone");
+        nightstand.transform.SetParent(parent, false);
+
+        const float legHeight = 0.15f;
+        float legInsetX0 = NightstandCenterX - NightstandSize / 2f + 0.05f;
+        float legInsetX1 = NightstandCenterX + NightstandSize / 2f - 0.05f;
+        float legInsetZ0 = NightstandCenterZ - NightstandSize / 2f + 0.05f;
+        float legInsetZ1 = NightstandCenterZ + NightstandSize / 2f - 0.05f;
+
+        MakeCylinder("Leg_FL", nightstand.transform, new Vector3(legInsetX0, legHeight / 2f, legInsetZ0), 0.04f, legHeight);
+        MakeCylinder("Leg_FR", nightstand.transform, new Vector3(legInsetX1, legHeight / 2f, legInsetZ0), 0.04f, legHeight);
+        MakeCylinder("Leg_BL", nightstand.transform, new Vector3(legInsetX0, legHeight / 2f, legInsetZ1), 0.04f, legHeight);
+        MakeCylinder("Leg_BR", nightstand.transform, new Vector3(legInsetX1, legHeight / 2f, legInsetZ1), 0.04f, legHeight);
+
+        MakeBox("Body", nightstand.transform,
+            new Vector3(NightstandCenterX, legHeight + (NightstandHeight - legHeight) / 2f, NightstandCenterZ),
+            new Vector3(NightstandSize, NightstandHeight - legHeight, NightstandSize));
+
+        MakeBox("Drawer_Face", nightstand.transform,
+            new Vector3(NightstandCenterX + NightstandSize / 2f - 0.02f, (legHeight + NightstandHeight) / 2f, NightstandCenterZ),
+            new Vector3(0.04f, 0.22f, NightstandSize - 0.15f));
+        MakeBox("Drawer_Knob", nightstand.transform,
+            new Vector3(NightstandCenterX + NightstandSize / 2f + 0.01f, (legHeight + NightstandHeight) / 2f, NightstandCenterZ),
+            new Vector3(0.03f, 0.03f, 0.06f));
+
+        MakeBox("Phone_Base", nightstand.transform,
+            new Vector3(NightstandCenterX, NightstandHeight + 0.03f, NightstandCenterZ),
+            new Vector3(0.28f, 0.06f, 0.2f));
+        MakeBox("Phone_Handset", nightstand.transform,
+            new Vector3(NightstandCenterX, NightstandHeight + 0.09f, NightstandCenterZ),
+            new Vector3(0.22f, 0.05f, 0.09f));
+    }
+
+    // Legs + seat + backrest + armrests, facing +X toward the TV shelf.
+    static void BuildArmchair(Transform parent, string name, float centerZ)
+    {
+        var chair = new GameObject(name);
+        chair.transform.SetParent(parent, false);
+
+        const float legHeight = 0.12f;
+        const float seatHeight = 0.15f;
+        const float armHeight = 0.35f;
+        const float backHeight = 0.55f;
+        float x0 = SeatingCenterX - SofaSize / 2f;
+        float x1 = SeatingCenterX + SofaSize / 2f;
+        float z0 = centerZ - SofaSize / 2f;
+        float z1 = centerZ + SofaSize / 2f;
+
+        MakeCylinder("Leg_FL", chair.transform, new Vector3(x0 + 0.08f, legHeight / 2f, z0 + 0.08f), 0.06f, legHeight);
+        MakeCylinder("Leg_FR", chair.transform, new Vector3(x1 - 0.08f, legHeight / 2f, z0 + 0.08f), 0.06f, legHeight);
+        MakeCylinder("Leg_BL", chair.transform, new Vector3(x0 + 0.08f, legHeight / 2f, z1 - 0.08f), 0.06f, legHeight);
+        MakeCylinder("Leg_BR", chair.transform, new Vector3(x1 - 0.08f, legHeight / 2f, z1 - 0.08f), 0.06f, legHeight);
+
+        MakeBox("Seat", chair.transform,
+            new Vector3(SeatingCenterX, legHeight + seatHeight / 2f, centerZ),
+            new Vector3(SofaSize - 0.2f, seatHeight, SofaSize - 0.05f));
+
+        // Backrest on the -X side (chair faces +X, toward the TV)
+        MakeBox("Backrest", chair.transform,
+            new Vector3(x0 + 0.06f, legHeight + backHeight / 2f, centerZ),
+            new Vector3(0.12f, backHeight, SofaSize - 0.05f));
+
+        MakeBox("Armrest_Near", chair.transform,
+            new Vector3(SeatingCenterX + 0.05f, legHeight + armHeight / 2f, z0 + 0.06f),
+            new Vector3(SofaSize - 0.3f, armHeight, 0.12f));
+        MakeBox("Armrest_Far", chair.transform,
+            new Vector3(SeatingCenterX + 0.05f, legHeight + armHeight / 2f, z1 - 0.06f),
+            new Vector3(SofaSize - 0.3f, armHeight, 0.12f));
     }
 
     // Bed is flush against the left wall (the same side as the bathroom, x = 0 — no clearance needed
@@ -440,6 +592,24 @@ public static class HotelBlockoutBuilder
         MakeBox("Leg_FrontRight", bed.transform, new Vector3(legInsetX1, BedLegHeight / 2f, legInsetZ0), legSize);
         MakeBox("Leg_BackLeft", bed.transform, new Vector3(legInsetX0, BedLegHeight / 2f, legInsetZ1), legSize);
         MakeBox("Leg_BackRight", bed.transform, new Vector3(legInsetX1, BedLegHeight / 2f, legInsetZ1), legSize);
+
+        // Headboard against the wall the bed is flush with, running along the bed's depth
+        MakeBox("Headboard", bed.transform,
+            new Vector3(0.05f, 0.55f, bedZ0 + BedDepth / 2f),
+            new Vector3(0.1f, 1.1f, BedDepth));
+
+        float mattressTopY = BedLegHeight + BedHeight;
+        MakeBox("Pillow_1", bed.transform,
+            new Vector3(0.45f, mattressTopY + 0.09f, bedZ0 + 0.85f),
+            new Vector3(0.65f, 0.18f, 1.05f));
+        MakeBox("Pillow_2", bed.transform,
+            new Vector3(0.45f, mattressTopY + 0.09f, bedZ0 + BedDepth - 0.85f),
+            new Vector3(0.65f, 0.18f, 1.05f));
+
+        // Folded-back blanket strip near the foot of the bed
+        MakeBox("Blanket_Fold", bed.transform,
+            new Vector3(BedWidth - 0.55f, mattressTopY + 0.07f, bedZ0 + BedDepth / 2f),
+            new Vector3(1.1f, 0.14f, BedDepth - 0.3f));
     }
 
     static void BuildCorridor(Transform parent, float totalWidth)
@@ -502,6 +672,19 @@ public static class HotelBlockoutBuilder
         go.transform.SetParent(parent, false);
         go.transform.localPosition = localPosition;
         go.transform.localScale = size;
+        Undo.RegisterCreatedObjectUndo(go, "Build Hotel Blockout");
+        return go;
+    }
+
+    // Unity's cylinder primitive is 2 units tall and 1 unit wide by default (localScale 1,1,1),
+    // so height maps to scale.y * 2 and diameter maps to scale.x/scale.z.
+    static GameObject MakeCylinder(string name, Transform parent, Vector3 localPosition, float diameter, float height)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        go.name = name;
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = localPosition;
+        go.transform.localScale = new Vector3(diameter, height / 2f, diameter);
         Undo.RegisterCreatedObjectUndo(go, "Build Hotel Blockout");
         return go;
     }
