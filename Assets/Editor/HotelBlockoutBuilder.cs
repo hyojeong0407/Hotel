@@ -25,6 +25,63 @@ public static class HotelBlockoutBuilder
     const float DoorWidth = 1.3f;
     const float PassageWidth = 7f; // open walkway between Front_Desk and Staff_Room
 
+    // Window in the guest room's back wall (opposite the door)
+    const float WindowCenterX = 5f;
+    const float WindowWidth = 5f;
+    const float WindowSillHeight = 1f;
+    const float WindowHeight = 1.2f;
+
+    // Wardrobe — tucked into the corner next to the bathroom
+    const float WardrobeCenterX = 3.65f;
+    const float WardrobeCenterZ = 0.65f;
+    const float WardrobeSize = 1.3f;
+    const float WardrobeHeight = 2f;
+
+    // Nightstand + phone — foot of the bed, by the window wall
+    const float NightstandCenterX = 0.5f;
+    const float NightstandCenterZ = 7.5f;
+    const float NightstandSize = 1f;
+    const float NightstandHeight = 0.5f;
+
+    // Seating: two armchairs with a side table between them, facing the TV
+    const float SofaSize = 1.1f;
+    const float SofaHeight = 0.8f;
+    const float Sofa1CenterZ = 3.55f;
+    const float Sofa2CenterZ = 6.45f;
+    const float SeatingCenterX = 6.95f;
+    const float TableWidth = 0.7f;
+    const float TableDepth = 0.6f;
+    const float TableHeight = 0.4f;
+    const float TableCenterZ = 5f;
+
+    // TV shelf, mounted on the east wall
+    const float TvCenterX = 9.78f;
+    const float TvCenterZ = 5f;
+    const float TvThickness = 0.35f;
+    const float TvSpan = 2f;
+    const float TvShelfHeight = 0.5f;
+    const float TvShelfElevation = 1f;
+
+    // Bathroom fixtures
+    const float TubCenterX = 1.5f;
+    const float TubCenterZ = 0.65f;
+    const float TubWidth = 2.6f;
+    const float TubDepth = 0.9f;
+    const float TubHeight = 0.5f;
+    const float CurtainHeight = 2f;
+    const float SinkCenterX = 0.65f;
+    const float SinkCenterZ = 2.1f;
+    const float SinkWidth = 0.9f;
+    const float SinkDepth = 0.6f;
+    const float SinkHeight = 0.85f;
+    const float MirrorHeight = 0.8f;
+    const float MirrorElevation = 1f;
+    const float ToiletCenterX = 2.65f;
+    const float ToiletCenterZ = 1.7f;
+    const float ToiletWidth = 0.7f;
+    const float ToiletDepth = 0.8f;
+    const float ToiletHeight = 0.4f;
+
     [MenuItem("Tools/Hotel Blockout/Build Room 101")]
     public static void BuildRoom101()
     {
@@ -213,9 +270,12 @@ public static class HotelBlockoutBuilder
             new Vector3(width / 2f, CeilingHeight + WallThickness / 2f, length / 2f),
             new Vector3(width, WallThickness, length));
 
-        MakeBox("Wall_Back", parent,
-            new Vector3(width / 2f, CeilingHeight / 2f, length + WallThickness / 2f),
-            new Vector3(width + WallThickness * 2f, CeilingHeight, WallThickness));
+        if (includeBathroom)
+            BuildWallWithWindow(parent, width, length);
+        else
+            MakeBox("Wall_Back", parent,
+                new Vector3(width / 2f, CeilingHeight / 2f, length + WallThickness / 2f),
+                new Vector3(width + WallThickness * 2f, CeilingHeight, WallThickness));
 
         MakeBox("Wall_Left", parent,
             new Vector3(-WallThickness / 2f, CeilingHeight / 2f, length / 2f),
@@ -251,7 +311,97 @@ public static class HotelBlockoutBuilder
             new Vector3(bathDoorMinX / 2f, CeilingHeight / 2f, BathLength),
             new Vector3(bathDoorMinX, CeilingHeight, WallThickness));
 
+        BuildBathroomFixtures(bathroom.transform);
         BuildBed(parent, width, length);
+        BuildRoomFurniture(parent);
+    }
+
+    // Window cut into the back wall (opposite the door): a sill strip, a lintel strip, and side
+    // strips flanking the opening — the opening itself is left empty, same as the door gaps.
+    static void BuildWallWithWindow(Transform parent, float width, float length)
+    {
+        var wall = new GameObject("Wall_Back");
+        wall.transform.SetParent(parent, false);
+
+        float windowX0 = WindowCenterX - WindowWidth / 2f;
+        float windowX1 = WindowCenterX + WindowWidth / 2f;
+        float windowTop = WindowSillHeight + WindowHeight;
+        float wallZ = length + WallThickness / 2f;
+
+        MakeBox("Sill", wall.transform,
+            new Vector3(width / 2f, WindowSillHeight / 2f, wallZ),
+            new Vector3(width + WallThickness * 2f, WindowSillHeight, WallThickness));
+
+        MakeBox("Lintel", wall.transform,
+            new Vector3(width / 2f, (windowTop + CeilingHeight) / 2f, wallZ),
+            new Vector3(width + WallThickness * 2f, CeilingHeight - windowTop, WallThickness));
+
+        MakeBox("Wall_Left_Of_Window", wall.transform,
+            new Vector3(windowX0 / 2f, (WindowSillHeight + windowTop) / 2f, wallZ),
+            new Vector3(windowX0, WindowHeight, WallThickness));
+
+        MakeBox("Wall_Right_Of_Window", wall.transform,
+            new Vector3((windowX1 + width) / 2f, (WindowSillHeight + windowTop) / 2f, wallZ),
+            new Vector3(width - windowX1, WindowHeight, WallThickness));
+    }
+
+    static void BuildBathroomFixtures(Transform bathroom)
+    {
+        MakeBox("Tub", bathroom,
+            new Vector3(TubCenterX, TubHeight / 2f, TubCenterZ),
+            new Vector3(TubWidth, TubHeight, TubDepth));
+
+        float curtainZ = TubCenterZ + TubDepth / 2f; // hangs along the tub's front (open) edge
+        MakeBox("Shower_Curtain", bathroom,
+            new Vector3(TubCenterX, CurtainHeight / 2f, curtainZ),
+            new Vector3(TubWidth, CurtainHeight, 0.05f));
+
+        MakeBox("Sink", bathroom,
+            new Vector3(SinkCenterX, SinkHeight / 2f, SinkCenterZ),
+            new Vector3(SinkWidth, SinkHeight, SinkDepth));
+
+        MakeBox("Mirror", bathroom, // mounted on the west wall, above the sink
+            new Vector3(0.03f, MirrorElevation + MirrorHeight / 2f, SinkCenterZ),
+            new Vector3(0.06f, MirrorHeight, SinkDepth));
+
+        MakeBox("Toilet", bathroom,
+            new Vector3(ToiletCenterX, ToiletHeight / 2f, ToiletCenterZ),
+            new Vector3(ToiletWidth, ToiletHeight, ToiletDepth));
+    }
+
+    static void BuildRoomFurniture(Transform parent)
+    {
+        var furniture = new GameObject("Furniture");
+        furniture.transform.SetParent(parent, false);
+
+        MakeBox("Wardrobe", furniture.transform,
+            new Vector3(WardrobeCenterX, WardrobeHeight / 2f, WardrobeCenterZ),
+            new Vector3(WardrobeSize, WardrobeHeight, WardrobeSize));
+
+        var nightstand = new GameObject("Nightstand_Phone");
+        nightstand.transform.SetParent(furniture.transform, false);
+        MakeBox("Nightstand", nightstand.transform,
+            new Vector3(NightstandCenterX, NightstandHeight / 2f, NightstandCenterZ),
+            new Vector3(NightstandSize, NightstandHeight, NightstandSize));
+        MakeBox("Phone", nightstand.transform,
+            new Vector3(NightstandCenterX, NightstandHeight + 0.05f, NightstandCenterZ),
+            new Vector3(0.3f, 0.1f, 0.2f));
+
+        MakeBox("Sofa_1", furniture.transform,
+            new Vector3(SeatingCenterX, SofaHeight / 2f, Sofa1CenterZ),
+            new Vector3(SofaSize, SofaHeight, SofaSize));
+
+        MakeBox("Side_Table", furniture.transform,
+            new Vector3(SeatingCenterX, TableHeight / 2f, TableCenterZ),
+            new Vector3(TableWidth, TableHeight, TableDepth));
+
+        MakeBox("Sofa_2", furniture.transform,
+            new Vector3(SeatingCenterX, SofaHeight / 2f, Sofa2CenterZ),
+            new Vector3(SofaSize, SofaHeight, SofaSize));
+
+        MakeBox("TV_Shelf", furniture.transform,
+            new Vector3(TvCenterX, TvShelfElevation + TvShelfHeight / 2f, TvCenterZ),
+            new Vector3(TvThickness, TvShelfHeight, TvSpan));
     }
 
     // Bed is flush against the left wall (the same side as the bathroom, x = 0 — no clearance needed
