@@ -121,18 +121,21 @@ public static class HotelBlockoutBuilder
     }
 
     // Headless entry point for `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.BuildAllFloorsAndSaveBatch`.
-    // Opens SampleScene, rebuilds Floor1-5, reapplies hyojeong0407's dark materials (rebuilding replaces every
-    // object, which would otherwise leave freshly-created ones with the default material), and saves.
+    // Opens SampleScene, rebuilds Floor1-5, reapplies hyojeong0407's dark materials plus the luxury furniture
+    // palette (rebuilding replaces every object, which would otherwise leave fresh ones with no material), and saves.
     public static void BuildAllFloorsAndSaveBatch()
     {
         var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
         BuildAllFloorsMenu();
-        ReapplyFloorMaterials();
+        var floors = FindAllFloorRoots();
+        Selection.objects = floors;
+        ExteriorMaterialApplier.ApplyMaterials();
+        ApplyLuxuryFurnitureColors(floors);
         EditorSceneManager.SaveScene(scene);
         Debug.Log("BuildAllFloorsAndSaveBatch 완료: SampleScene에 저장됨.");
     }
 
-    static void ReapplyFloorMaterials()
+    static GameObject[] FindAllFloorRoots()
     {
         var targets = new System.Collections.Generic.List<GameObject>();
         for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
@@ -141,8 +144,73 @@ public static class HotelBlockoutBuilder
             if (go != null)
                 targets.Add(go);
         }
-        Selection.objects = targets.ToArray();
-        ExteriorMaterialApplier.ApplyMaterials();
+        return targets.ToArray();
+    }
+
+    // Applied on top of ExteriorMaterialApplier's dark walls/floors/ceilings — a warm, rich palette
+    // for the furniture pieces only (deep red velvet upholstery, dark mahogany wood, brass accents),
+    // matching a reference photo of an old-money hotel suite. Bathroom fixtures are left alone so the
+    // bathroom stays colder/starker than the bedroom.
+    [MenuItem("Tools/Hotel Blockout/Apply Luxury Furniture Colors")]
+    public static void ApplyLuxuryFurnitureColorsMenu()
+    {
+        var targets = Selection.gameObjects;
+        if (targets.Length == 0)
+        {
+            Debug.LogWarning("먼저 색을 칠할 오브젝트들을 하이어라키에서 선택해 주세요!");
+            return;
+        }
+        ApplyLuxuryFurnitureColors(targets);
+    }
+
+    static void ApplyLuxuryFurnitureColors(GameObject[] targets)
+    {
+        Material velvetRed = NewStandardMaterial(new Color(0.42f, 0.06f, 0.09f), 0.15f);
+        Material mahogany = NewStandardMaterial(new Color(0.22f, 0.11f, 0.06f), 0.25f);
+        Material brassGold = NewStandardMaterial(new Color(0.55f, 0.42f, 0.15f), 0.55f);
+        Material mutedGold = NewStandardMaterial(new Color(0.5f, 0.42f, 0.28f), 0.1f);
+        Material blackPlastic = NewStandardMaterial(new Color(0.03f, 0.03f, 0.03f), 0.6f);
+        Material mirrorSilver = NewStandardMaterial(new Color(0.6f, 0.6f, 0.62f), 0.7f);
+
+        var redVelvet = new System.Collections.Generic.HashSet<string> { "seat", "backrest", "armrest_near", "armrest_far", "mattress", "blanket_fold" };
+        var gold = new System.Collections.Generic.HashSet<string> { "pillow_1", "pillow_2" };
+        var wood = new System.Collections.Generic.HashSet<string> { "cabinet_body", "door_left", "door_right", "cornice", "plinth", "body", "drawer_face", "side_table_top", "headboard", "tv_shelf" };
+        var brass = new System.Collections.Generic.HashSet<string> { "handle_left", "handle_right", "drawer_knob" };
+        var plastic = new System.Collections.Generic.HashSet<string> { "tv_screen", "phone_base", "phone_handset" };
+
+        int count = 0;
+        foreach (var target in targets)
+        {
+            Undo.RegisterFullObjectHierarchyUndo(target, "Apply Luxury Furniture Colors");
+            foreach (var r in target.GetComponentsInChildren<MeshRenderer>())
+            {
+                string n = r.gameObject.name.ToLower();
+                Material chosen =
+                    redVelvet.Contains(n) ? velvetRed :
+                    gold.Contains(n) ? mutedGold :
+                    wood.Contains(n) ? mahogany :
+                    brass.Contains(n) ? brassGold :
+                    plastic.Contains(n) ? blackPlastic :
+                    n == "mirror" ? mirrorSilver :
+                    null;
+
+                if (chosen == null)
+                    continue;
+
+                r.sharedMaterial = chosen;
+                count++;
+            }
+        }
+
+        Debug.Log($"럭셔리 가구 배색 완료: {count}개 블록 (레드 벨벳/마호가니/브라스).");
+    }
+
+    static Material NewStandardMaterial(Color color, float glossiness)
+    {
+        var mat = new Material(Shader.Find("Standard"));
+        mat.color = color;
+        mat.SetFloat("_Glossiness", glossiness);
+        return mat;
     }
 
     // Floor 1 has the ground-level lobby (open front desk/passage behind a single entrance wall).
