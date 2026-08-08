@@ -165,18 +165,24 @@ public static class HotelBlockoutBuilder
 
     static void ApplyLuxuryFurnitureColors(GameObject[] targets)
     {
-        Material velvetRed = NewStandardMaterial(new Color(0.42f, 0.06f, 0.09f), 0.15f);
-        Material mahogany = NewStandardMaterial(new Color(0.22f, 0.11f, 0.06f), 0.25f);
-        Material brassGold = NewStandardMaterial(new Color(0.55f, 0.42f, 0.15f), 0.55f);
-        Material mutedGold = NewStandardMaterial(new Color(0.5f, 0.42f, 0.28f), 0.1f);
-        Material blackPlastic = NewStandardMaterial(new Color(0.03f, 0.03f, 0.03f), 0.6f);
-        Material mirrorSilver = NewStandardMaterial(new Color(0.6f, 0.6f, 0.62f), 0.7f);
+        // name -> (color, glossiness, metallic). Glossiness/metallic are picked per real-world material,
+        // not just per object, so everything reads as what it is instead of one flat matte grey.
+        Material velvetRed = NewStandardMaterial(new Color(0.42f, 0.06f, 0.09f), 0.15f, 0f);       // fabric: soft, non-metal
+        Material mahogany = NewStandardMaterial(new Color(0.22f, 0.11f, 0.06f), 0.3f, 0f);          // polished wood
+        Material brassMetal = NewStandardMaterial(new Color(0.55f, 0.42f, 0.15f), 0.6f, 0.75f);     // real metal: high metallic
+        Material mutedGold = NewStandardMaterial(new Color(0.5f, 0.42f, 0.28f), 0.1f, 0f);          // fabric
+        Material blackPlastic = NewStandardMaterial(new Color(0.03f, 0.03f, 0.03f), 0.6f, 0f);      // glossy plastic, non-metal
+        Material mirrorGlass = NewStandardMaterial(new Color(0.6f, 0.6f, 0.62f), 0.92f, 0.85f);     // near-mirror finish
+        Material ceramic = NewStandardMaterial(new Color(0.16f, 0.16f, 0.17f), 0.45f, 0f);          // tub/sink/toilet: glossy, non-metal
+        Material windowGlass = NewStandardMaterial(new Color(0.5f, 0.62f, 0.58f), 0.85f, 0.1f);     // faint blue-green tint
+        Material vinylCurtain = NewStandardMaterial(new Color(0.1f, 0.11f, 0.13f), 0.35f, 0f);      // shower curtain
 
         var redVelvet = new System.Collections.Generic.HashSet<string> { "seat", "backrest", "armrest_near", "armrest_far", "mattress", "blanket_fold" };
-        var gold = new System.Collections.Generic.HashSet<string> { "pillow_1", "pillow_2" };
+        var gold = new System.Collections.Generic.HashSet<string> { "pillow_1", "pillow_2", "shade" };
         var wood = new System.Collections.Generic.HashSet<string> { "cabinet_body", "door_left", "door_right", "cornice", "plinth", "body", "drawer_face", "side_table_top", "headboard", "tv_shelf" };
-        var brass = new System.Collections.Generic.HashSet<string> { "handle_left", "handle_right", "drawer_knob" };
+        var brass = new System.Collections.Generic.HashSet<string> { "handle_left", "handle_right", "drawer_knob", "tub_faucet", "sink_faucet", "mirror_frame_top", "mirror_frame_bottom", "base", "pole", "ceiling_fixture" };
         var plastic = new System.Collections.Generic.HashSet<string> { "tv_screen", "phone_base", "phone_handset" };
+        var ceramicNames = new System.Collections.Generic.HashSet<string> { "tub", "sink_basin", "sink_pedestal", "sink_backsplash", "toilet_bowl", "toilet_tank", "toilet_seat" };
 
         int count = 0;
         foreach (var target in targets)
@@ -189,9 +195,12 @@ public static class HotelBlockoutBuilder
                     redVelvet.Contains(n) ? velvetRed :
                     gold.Contains(n) ? mutedGold :
                     wood.Contains(n) ? mahogany :
-                    brass.Contains(n) ? brassGold :
+                    brass.Contains(n) ? brassMetal :
                     plastic.Contains(n) ? blackPlastic :
-                    n == "mirror" ? mirrorSilver :
+                    ceramicNames.Contains(n) ? ceramic :
+                    n == "mirror" ? mirrorGlass :
+                    n == "glass" ? windowGlass :
+                    n.StartsWith("curtain_fold") ? vinylCurtain :
                     null;
 
                 if (chosen == null)
@@ -202,14 +211,15 @@ public static class HotelBlockoutBuilder
             }
         }
 
-        Debug.Log($"럭셔리 가구 배색 완료: {count}개 블록 (레드 벨벳/마호가니/브라스).");
+        Debug.Log($"럭셔리 가구 배색 완료: {count}개 블록 (레드 벨벳/마호가니/브라스/도기/유리).");
     }
 
-    static Material NewStandardMaterial(Color color, float glossiness)
+    static Material NewStandardMaterial(Color color, float glossiness, float metallic)
     {
         var mat = new Material(Shader.Find("Standard"));
         mat.color = color;
         mat.SetFloat("_Glossiness", glossiness);
+        mat.SetFloat("_Metallic", metallic);
         return mat;
     }
 
@@ -408,6 +418,7 @@ public static class HotelBlockoutBuilder
         BuildBathroomFixtures(bathroom.transform);
         BuildBed(parent, width, length);
         BuildRoomFurniture(parent);
+        BuildRoomLighting(parent, width, length);
     }
 
     // Window cut into the back wall (opposite the door): a sill strip, a lintel strip, and side
@@ -530,6 +541,51 @@ public static class HotelBlockoutBuilder
         MakeBox("TV_Screen", furniture.transform,
             new Vector3(TvCenterX + TvThickness / 2f + 0.03f, TvShelfElevation + 0.75f, TvCenterZ),
             new Vector3(0.06f, 0.9f, TvSpan * 0.75f));
+    }
+
+    // One overhead pendant for general room fill, plus two warm accent lamps (nightstand, side table)
+    // echoing the reference photo's twin table lamps either side of the seating area.
+    static void BuildRoomLighting(Transform parent, float width, float length)
+    {
+        var lighting = new GameObject("Lighting");
+        lighting.transform.SetParent(parent, false);
+
+        float centerX = width / 2f;
+        float centerZ = length / 2f;
+        MakeCylinder("Ceiling_Fixture", lighting.transform, new Vector3(centerX, CeilingHeight - 0.06f, centerZ), 0.4f, 0.1f);
+        BuildPointLight(lighting.transform, "Ceiling_Light", new Vector3(centerX, CeilingHeight - 0.3f, centerZ),
+            new Color(1f, 0.82f, 0.6f), 1.2f, 7f);
+
+        BuildLamp(lighting.transform, "Nightstand_Lamp", NightstandCenterX + 0.28f, NightstandHeight, NightstandCenterZ - 0.28f);
+        BuildLamp(lighting.transform, "SideTable_Lamp", SeatingCenterX, TableHeight, TableCenterZ);
+    }
+
+    static void BuildLamp(Transform parent, string name, float x, float surfaceY, float z)
+    {
+        var lamp = new GameObject(name);
+        lamp.transform.SetParent(parent, false);
+
+        MakeCylinder("Base", lamp.transform, new Vector3(x, surfaceY + 0.02f, z), 0.12f, 0.04f);
+        MakeCylinder("Pole", lamp.transform, new Vector3(x, surfaceY + 0.16f, z), 0.03f, 0.24f);
+        MakeCylinder("Shade", lamp.transform, new Vector3(x, surfaceY + 0.34f, z), 0.22f, 0.16f);
+
+        BuildPointLight(lamp.transform, "Lamp_Light", new Vector3(x, surfaceY + 0.32f, z),
+            new Color(1f, 0.78f, 0.52f), 0.7f, 2.8f);
+    }
+
+    static void BuildPointLight(Transform parent, string name, Vector3 localPosition, Color color, float intensity, float range)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = localPosition;
+
+        var light = go.AddComponent<Light>();
+        light.type = LightType.Point;
+        light.color = color;
+        light.intensity = intensity;
+        light.range = range;
+
+        Undo.RegisterCreatedObjectUndo(go, "Build Hotel Blockout");
     }
 
     static void BuildWardrobe(Transform parent)
