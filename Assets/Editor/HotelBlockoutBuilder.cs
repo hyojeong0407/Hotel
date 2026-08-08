@@ -1,4 +1,5 @@
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 public static class HotelBlockoutBuilder
@@ -117,6 +118,16 @@ public static class HotelBlockoutBuilder
     {
         for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
             BuildFloor(floorNumber);
+    }
+
+    // Headless entry point for `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.BuildAllFloorsAndSaveBatch`.
+    // Opens SampleScene, rebuilds Floor1-5, and saves — for scripted runs when no one has the editor open.
+    public static void BuildAllFloorsAndSaveBatch()
+    {
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+        BuildAllFloorsMenu();
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log("BuildAllFloorsAndSaveBatch 완료: SampleScene에 저장됨.");
     }
 
     // Floor 1 has the ground-level lobby (open front desk/passage behind a single entrance wall).
