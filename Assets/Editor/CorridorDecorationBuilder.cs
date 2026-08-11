@@ -159,6 +159,41 @@ public static class CorridorDecorationBuilder
         Debug.Log("3F 복도 장식 및 조명 세팅 완료!");
     }
 
+    [MenuItem("Tools/Hotel Blockout/Decorate Corridor - 4F (Ruins / Anomaly)")]
+    public static void DecorateFloor4()
+    {
+        int floorNum = 4;
+        float yOffset = (floorNum - 1) * StoryHeight;
+        
+        // 4층은 공식 객실이 없으므로 전체 복도 및 빈 공간을 아우르는 루트 생성
+        GameObject root = CreateRoot("Floor4_Decorations", yOffset);
+
+        // --- 4층 복도 및 공백 구역: 완전히 부서진 폐허 테마 ---
+        GameObject ruins = new GameObject("Ruins_Decor");
+        ruins.transform.SetParent(root.transform, false);
+
+        // 1. 무너져 내린 천장 잔해 (바닥에 널브러진 콘크리트 및 벽돌 더미)
+        MakeBlockout(ruins.transform, "Rubble_Pile_1", PrimitiveType.Cube, new Vector3(15f, 0.2f, 2f), new Vector3(3f, 0.4f, 2f), Color.gray);
+        MakeBlockout(ruins.transform, "Rubble_Pile_2", PrimitiveType.Cube, new Vector3(28f, 0.3f, 2.5f), new Vector3(2.5f, 0.6f, 1.8f), new Color(0.25f, 0.25f, 0.25f));
+        MakeBlockout(ruins.transform, "Broken_Beam", PrimitiveType.Cube, new Vector3(21f, 0.1f, 1.5f), new Vector3(4f, 0.3f, 0.8f), new Color(0.15f, 0.15f, 0.15f));
+
+        // 2. 찢겨 나가고 흔적만 남은 낡은 카펫 조각들
+        GameObject ruinedCarpet = new GameObject("Torn_Ruined_Carpet");
+        ruinedCarpet.transform.SetParent(ruins.transform, false);
+        MakeBlockout(ruinedCarpet.transform, "Mat_1", PrimitiveType.Cube, new Vector3(10f, 0.01f, 2f), new Vector3(3f, 0.02f, 1.5f), new Color(0.1f, 0.05f, 0.05f));
+        GameObject mat2 = MakeBlockout(ruinedCarpet.transform, "Mat_2", PrimitiveType.Cube, new Vector3(25f, 0.01f, 2.2f), new Vector3(2f, 0.02f, 1.2f), new Color(0.08f, 0.04f, 0.04f));
+        mat2.transform.localRotation = Quaternion.Euler(0, 25f, 0);
+
+        // 3. 4층 메인 조명 (벽부등 없이 어둡고 스산한 청회색 빛만 은은하게 배치)
+        Color light4F = new Color(0.3f, 0.35f, 0.4f);
+        AddLight(root.transform, new Vector3(20f, 2.4f, 2f), light4F, 1.5f, 6f);
+
+        // 4. 바닥에 깔리는 스산한 안개 파티클 이펙트
+        AddFogEffect(root.transform);
+
+        Debug.Log("4F 폐허 복도 장식 및 안개 파티클 세팅 완료! (벽부등 제거됨)");
+    }
+
     [MenuItem("Tools/Hotel Blockout/Decorate Corridor - 5F (Occult)")]
     public static void DecorateFloor5()
     {
@@ -323,5 +358,56 @@ public static class CorridorDecorationBuilder
         MakeBlockout(staffRoom.transform, "Status_Board", PrimitiveType.Cube, new Vector3(27.5f, 1.5f, -0.05f), new Vector3(1.5f, 1f, 0.1f), Color.gray); 
 
         AddLight(staffRoom.transform, new Vector3(29f, 2.4f, -4f), new Color(0.85f, 0.9f, 1f), 3.5f, 7f);
+    }
+
+    // 안개 파티클 시스템 생성 함수
+    static void AddFogEffect(Transform parent)
+    {
+        GameObject fog = new GameObject("Creepy_Fog_Particles");
+        fog.transform.SetParent(parent, false);
+        // 복도 중앙, 바닥에 가깝게 배치
+        fog.transform.localPosition = new Vector3(20f, 0.5f, 2f);
+
+        ParticleSystem ps = fog.AddComponent<ParticleSystem>();
+        
+        // 파티클 메인 모듈 설정
+        var main = ps.main;
+        main.startLifetime = 12f;                  // 안개가 오래 머물도록
+        main.startSpeed = 0.2f;                    // 천천히 흘러가게
+        main.startSize = 8f;                       // 입자 크기 큼직하게 설정
+        main.startColor = new Color(0.7f, 0.75f, 0.8f, 0.05f); // 매우 옅은 반투명 청회색
+        main.maxParticles = 400;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+
+        // 파티클 방출량 설정
+        var emission = ps.emission;
+        emission.rateOverTime = 20f;
+
+        // 파티클 형태 설정 (4층 복도 전체를 덮을 수 있는 넓은 Box 형태)
+        var shape = ps.shape;
+        shape.shapeType = ParticleSystemShapeType.Box;
+        shape.scale = new Vector3(45f, 2f, 8f);
+
+        // 안개가 부드럽게 렌더링되도록 기본 머티리얼 적용
+        var renderer = fog.GetComponent<ParticleSystemRenderer>();
+        
+        // [수정된 부분] 유니티 내장 기본 파티클 머티리얼을 불러와서 할당 (분홍색 에러 방지)
+        Material defaultParticleMat = UnityEditor.AssetDatabase.GetBuiltinExtraResource<Material>("Default-ParticleSystem.mat");
+        
+        if (defaultParticleMat != null)
+        {
+            renderer.sharedMaterial = defaultParticleMat;
+        }
+        else
+        {
+            // 혹시라도 기본 머티리얼을 못 찾을 경우 임시 쉐이더 생성
+            Shader unlitShader = Shader.Find("Particles/Standard Unlit");
+            if (unlitShader == null) unlitShader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+            
+            if (unlitShader != null)
+            {
+                renderer.sharedMaterial = new Material(unlitShader);
+            }
+        }
     }
 }
