@@ -188,7 +188,7 @@ public static class HotelBlockoutBuilder
 
         var redVelvet = new System.Collections.Generic.HashSet<string> { "seat", "backrest", "armrest_near", "armrest_far", "mattress", "blanket_fold" };
         var gold = new System.Collections.Generic.HashSet<string> { "pillow_1", "pillow_2", "shade" };
-        var wood = new System.Collections.Generic.HashSet<string> { "cabinet_body", "door_left", "door_right", "cornice", "plinth", "body", "drawer_face", "side_table_top", "headboard", "tv_shelf" };
+        var wood = new System.Collections.Generic.HashSet<string> { "cabinet_body", "door_left", "door_right", "cornice", "plinth", "body", "drawer_face", "side_table_top", "headboard", "tv_shelf", "leaf" };
         var brass = new System.Collections.Generic.HashSet<string> { "handle_left", "handle_right", "drawer_knob", "tub_faucet", "sink_faucet", "mirror_frame_top", "mirror_frame_bottom", "base", "pole", "ceiling_fixture" };
         var plastic = new System.Collections.Generic.HashSet<string> { "tv_screen", "phone_base", "phone_handset" };
         var ceramicNames = new System.Collections.Generic.HashSet<string> { "tub", "sink_basin", "sink_pedestal", "sink_backsplash", "toilet_bowl", "toilet_tank", "toilet_seat" };
@@ -495,6 +495,9 @@ public static class HotelBlockoutBuilder
         if (!includeBathroom)
             return;
 
+        // Main entry door — hinged at the left jamb, swings into the room
+        BuildDoor(parent, "Room_Door", doorMinX, 0f, DoorWidth, 2.1f);
+
         var bathroom = new GameObject("Bathroom");
         bathroom.transform.SetParent(parent, false);
 
@@ -507,10 +510,39 @@ public static class HotelBlockoutBuilder
             new Vector3(bathDoorMinX / 2f, CeilingHeight / 2f, BathLength),
             new Vector3(bathDoorMinX, CeilingHeight, WallThickness));
 
+        // Bathroom door — hinged at the left jamb, swings out into the bedroom (away from the fixtures)
+        BuildDoor(bathroom.transform, "Bath_Door", bathDoorMinX, BathLength, BathDoorWidth, 2f);
+
         BuildBathroomFixtures(bathroom.transform);
         BuildBed(parent, width, length);
         BuildRoomFurniture(parent);
         BuildRoomLighting(parent, width, length);
+    }
+
+    // Door leaf hinged at the opening's left jamb (hingeX), swinging open in the local +Z direction.
+    // The pivot carries the DoorInteractable script; the leaf is offset from it so rotating the pivot
+    // swings the door like a real hinge instead of spinning it in place.
+    static void BuildDoor(Transform parent, string name, float hingeX, float wallZ, float doorWidth, float doorHeight)
+    {
+        var pivot = new GameObject(name);
+        pivot.transform.SetParent(parent, false);
+        pivot.transform.localPosition = new Vector3(hingeX, 0f, wallZ);
+
+        float leafWidth = doorWidth - 0.04f;
+        MakeBox("Leaf", pivot.transform,
+            new Vector3(leafWidth / 2f, doorHeight / 2f, 0f),
+            new Vector3(leafWidth, doorHeight, 0.045f));
+
+        var trigger = new GameObject("InteractZone");
+        trigger.transform.SetParent(pivot.transform, false);
+        trigger.transform.localPosition = new Vector3(leafWidth / 2f, doorHeight / 2f, 0f);
+        var box = trigger.AddComponent<BoxCollider>();
+        box.isTrigger = true;
+        box.size = new Vector3(doorWidth + 1.6f, doorHeight, 1.6f);
+        Undo.RegisterCreatedObjectUndo(trigger, "Build Hotel Blockout");
+
+        pivot.AddComponent<DoorInteractable>();
+        Undo.RegisterCreatedObjectUndo(pivot, "Build Hotel Blockout");
     }
 
     // Window cut into the back wall (opposite the door): a sill strip, a lintel strip, and side
