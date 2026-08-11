@@ -90,7 +90,7 @@ public static class HotelBlockoutBuilder
         var root = new GameObject("Room_101");
         Undo.RegisterCreatedObjectUndo(root, "Build Room 101");
 
-        BuildRoomShell(root.transform, RoomWidth, RoomLength, includeBathroom: true, doorCenterX: RoomWidth - 1.1f);
+        BuildRoomShell(root.transform, RoomWidth, RoomLength, includeBathroom: true, doorCenterX: RoomWidth - 1.1f, roomLabel: "101");
 
         FocusOn(root);
         Debug.Log("Room_101 블록아웃 생성 완료: 4.5m x 6m, 천장 2.7m, 화장실 2.2m x 2.6m");
@@ -185,11 +185,12 @@ public static class HotelBlockoutBuilder
         Material ceramic = NewStandardMaterial(new Color(0.16f, 0.16f, 0.17f), 0.45f, 0f, ceramicTex, new Vector2(3f, 3f));
         Material windowGlass = NewStandardMaterial(new Color(0.5f, 0.62f, 0.58f), 0.85f, 0.1f);     // stays smooth, faint blue-green tint
         Material vinylCurtain = NewStandardMaterial(new Color(0.1f, 0.11f, 0.13f), 0.35f, 0f, vinylTex, new Vector2(2f, 4f));
+        Material fontMaterial = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf").material; // restores the room-number text material — ExteriorMaterialApplier repaints every MeshRenderer it finds, plaque digits included, which would otherwise blank the text out
 
         var redVelvet = new System.Collections.Generic.HashSet<string> { "seat", "backrest", "armrest_near", "armrest_far", "mattress", "blanket_fold" };
         var gold = new System.Collections.Generic.HashSet<string> { "pillow_1", "pillow_2", "shade" };
         var wood = new System.Collections.Generic.HashSet<string> { "cabinet_body", "door_left", "door_right", "cornice", "plinth", "body", "drawer_face", "side_table_top", "headboard", "tv_shelf", "leaf" };
-        var brass = new System.Collections.Generic.HashSet<string> { "handle_left", "handle_right", "drawer_knob", "tub_faucet", "sink_faucet", "mirror_frame_top", "mirror_frame_bottom", "base", "pole", "ceiling_fixture" };
+        var brass = new System.Collections.Generic.HashSet<string> { "handle_left", "handle_right", "drawer_knob", "tub_faucet", "sink_faucet", "mirror_frame_top", "mirror_frame_bottom", "base", "pole", "ceiling_fixture", "plaque_plate" };
         var plastic = new System.Collections.Generic.HashSet<string> { "tv_screen", "phone_base", "phone_handset" };
         var ceramicNames = new System.Collections.Generic.HashSet<string> { "tub", "sink_basin", "sink_pedestal", "sink_backsplash", "toilet_bowl", "toilet_tank", "toilet_seat" };
 
@@ -210,6 +211,8 @@ public static class HotelBlockoutBuilder
                     n == "mirror" ? mirrorGlass :
                     n == "glass" ? windowGlass :
                     n.StartsWith("curtain_fold") ? vinylCurtain :
+                    n.StartsWith("handle_") ? brassMetal :
+                    n == "plaque_number" ? fontMaterial :
                     null;
 
                 if (chosen == null)
@@ -389,7 +392,8 @@ public static class HotelBlockoutBuilder
         slot.transform.localRotation = Quaternion.Euler(0f, yRotation, 0f);
         Undo.RegisterCreatedObjectUndo(slot, "Build Floor 1");
 
-        BuildRoomShell(slot.transform, RoomWidth, RoomLength, includeBathroom: true, doorCenterX: RoomWidth - 1.1f);
+        BuildRoomShell(slot.transform, RoomWidth, RoomLength, includeBathroom: true, doorCenterX: RoomWidth - 1.1f,
+            roomLabel: name.Replace("Room_", ""));
     }
 
     // South-row utility room (no bathroom), placed by its own west edge X and width within the bay.
@@ -456,7 +460,7 @@ public static class HotelBlockoutBuilder
     }
 
     // Local room space: X 0..width, Z 0..length, entry door on the Z=0 wall.
-    static void BuildRoomShell(Transform parent, float width, float length, bool includeBathroom, float doorCenterX)
+    static void BuildRoomShell(Transform parent, float width, float length, bool includeBathroom, float doorCenterX, string roomLabel = null)
     {
         MakeBox("Floor", parent,
             new Vector3(width / 2f, -WallThickness / 2f, length / 2f),
@@ -499,6 +503,9 @@ public static class HotelBlockoutBuilder
         // Right's own thickness (they sit at z = -WallThickness/2, not z = 0) so the door lines up with the wall.
         BuildDoor(parent, "Room_Door", doorMinX, -WallThickness / 2f, DoorWidth, CeilingHeight);
 
+        if (roomLabel != null)
+            BuildRoomPlaque(parent, roomLabel, doorCenterX, -WallThickness / 2f);
+
         var bathroom = new GameObject("Bathroom");
         bathroom.transform.SetParent(parent, false);
 
@@ -533,10 +540,22 @@ public static class HotelBlockoutBuilder
         pivot.transform.SetParent(parent, false);
         pivot.transform.localPosition = new Vector3(hingeX, 0f, wallCenterZ);
 
+        // Unscaled group so the handles (children) don't inherit the Leaf cube's non-uniform scale —
+        // parenting straight to a scaled primitive stretches whatever's parented under it.
+        var leafGroup = new GameObject("Leaf_Group");
+        leafGroup.transform.SetParent(pivot.transform, false);
+
         float leafWidth = doorWidth; // fills the opening exactly — no gap between leaf and frame
-        MakeBox("Leaf", pivot.transform,
+        MakeBox("Leaf", leafGroup.transform,
             new Vector3(leafWidth / 2f, doorHeight / 2f, 0f),
             new Vector3(leafWidth, doorHeight, WallThickness));
+
+        // Lever handle + backplate, on both faces, near the edge opposite the hinge
+        float handleX = leafWidth - 0.14f;
+        float handleY = 1f;
+        float faceOffset = WallThickness / 2f;
+        BuildDoorHandle(leafGroup.transform, "Front", handleX, handleY, -faceOffset);
+        BuildDoorHandle(leafGroup.transform, "Back", handleX, handleY, faceOffset);
 
         var trigger = new GameObject("InteractZone");
         trigger.transform.SetParent(pivot.transform, false);
@@ -548,6 +567,45 @@ public static class HotelBlockoutBuilder
 
         pivot.AddComponent<DoorInteractable>();
         Undo.RegisterCreatedObjectUndo(pivot, "Build Hotel Blockout");
+    }
+
+    static void BuildDoorHandle(Transform parent, string faceName, float x, float y, float z)
+    {
+        MakeBox($"Handle_Plate_{faceName}", parent, new Vector3(x, y, z), new Vector3(0.09f, 0.09f, 0.015f));
+        float leverZ = z + Mathf.Sign(z) * 0.02f;
+        MakeBox($"Handle_Lever_{faceName}", parent, new Vector3(x, y, leverZ), new Vector3(0.16f, 0.025f, 0.025f));
+    }
+
+    // Small brass-on-gold plaque mounted on the corridor side of the entry wall, just above the door's
+    // vertical center, showing the room number in black. If the digits end up facing into the room
+    // instead of the corridor, add a 180-degree Y rotation to the "Room_Plaque" object.
+    static void BuildRoomPlaque(Transform parent, string roomNumber, float centerX, float wallCenterZ)
+    {
+        float exteriorZ = wallCenterZ - WallThickness / 2f;
+
+        var plaque = new GameObject("Room_Plaque");
+        plaque.transform.SetParent(parent, false);
+        plaque.transform.localPosition = new Vector3(centerX, 1.65f, exteriorZ);
+
+        MakeBox("Plaque_Plate", plaque.transform, new Vector3(0f, 0f, -0.008f), new Vector3(0.22f, 0.13f, 0.015f));
+
+        var textGO = new GameObject("Plaque_Number");
+        textGO.transform.SetParent(plaque.transform, false);
+        textGO.transform.localPosition = new Vector3(0f, 0f, -0.02f);
+
+        var textMesh = textGO.AddComponent<TextMesh>();
+        textMesh.text = roomNumber;
+        textMesh.fontSize = 48;
+        textMesh.characterSize = 0.08f;
+        textMesh.anchor = TextAnchor.MiddleCenter;
+        textMesh.alignment = TextAlignment.Center;
+        textMesh.color = Color.black;
+
+        var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        textMesh.font = font;
+        textGO.GetComponent<MeshRenderer>().sharedMaterial = font.material;
+
+        Undo.RegisterCreatedObjectUndo(plaque, "Build Hotel Blockout");
     }
 
     // Window cut into the back wall (opposite the door): a sill strip, a lintel strip, and side
