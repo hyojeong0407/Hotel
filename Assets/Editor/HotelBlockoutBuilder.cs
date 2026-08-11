@@ -168,6 +168,7 @@ public static class HotelBlockoutBuilder
         // Procedural textures (no source images in the project) — plain noise shaped per material so
         // it reads as grain/weave/speckle rather than visible static.
         Texture2D woodTex = GenerateWoodTexture(new Color(0.22f, 0.11f, 0.06f));
+        Texture2D doorWoodTex = GenerateWoodTexture(new Color(0.55f, 0.33f, 0.13f));
         Texture2D velvetTex = GenerateFabricTexture(new Color(0.42f, 0.06f, 0.09f));
         Texture2D goldFabricTex = GenerateFabricTexture(new Color(0.5f, 0.42f, 0.28f));
         Texture2D ceramicTex = GenerateCeramicTexture(new Color(0.16f, 0.16f, 0.17f));
@@ -178,6 +179,7 @@ public static class HotelBlockoutBuilder
         // real-world material, not just per object, so everything reads as what it is, not flat grey.
         Material velvetRed = NewStandardMaterial(new Color(0.42f, 0.06f, 0.09f), 0.15f, 0f, velvetTex, new Vector2(4f, 4f));
         Material mahogany = NewStandardMaterial(new Color(0.22f, 0.11f, 0.06f), 0.3f, 0f, woodTex, new Vector2(2f, 3f));
+        Material doorWood = NewStandardMaterial(new Color(0.55f, 0.33f, 0.13f), 0.32f, 0f, doorWoodTex, new Vector2(2f, 3f)); // 황갈색 — lighter/warmer than the mahogany furniture
         Material brassMetal = NewStandardMaterial(new Color(0.55f, 0.42f, 0.15f), 0.6f, 0.75f, brassTex, new Vector2(3f, 1.5f));
         Material mutedGold = NewStandardMaterial(new Color(0.5f, 0.42f, 0.28f), 0.1f, 0f, goldFabricTex, new Vector2(4f, 4f));
         Material blackPlastic = NewStandardMaterial(new Color(0.03f, 0.03f, 0.03f), 0.6f, 0f);      // glossy plastic, stays smooth
@@ -189,7 +191,7 @@ public static class HotelBlockoutBuilder
 
         var redVelvet = new System.Collections.Generic.HashSet<string> { "seat", "backrest", "armrest_near", "armrest_far", "mattress", "blanket_fold" };
         var gold = new System.Collections.Generic.HashSet<string> { "pillow_1", "pillow_2", "shade" };
-        var wood = new System.Collections.Generic.HashSet<string> { "cabinet_body", "door_left", "door_right", "cornice", "plinth", "body", "drawer_face", "side_table_top", "headboard", "tv_shelf", "leaf" };
+        var wood = new System.Collections.Generic.HashSet<string> { "cabinet_body", "door_left", "door_right", "cornice", "plinth", "body", "drawer_face", "side_table_top", "headboard", "tv_shelf" };
         var brass = new System.Collections.Generic.HashSet<string> { "handle_left", "handle_right", "drawer_knob", "tub_faucet", "sink_faucet", "mirror_frame_top", "mirror_frame_bottom", "base", "pole", "ceiling_fixture", "plaque_plate" };
         var plastic = new System.Collections.Generic.HashSet<string> { "tv_screen", "phone_base", "phone_handset" };
         var ceramicNames = new System.Collections.Generic.HashSet<string> { "tub", "sink_basin", "sink_pedestal", "sink_backsplash", "toilet_bowl", "toilet_tank", "toilet_seat" };
@@ -213,6 +215,7 @@ public static class HotelBlockoutBuilder
                     n.StartsWith("curtain_fold") ? vinylCurtain :
                     n.StartsWith("handle_") ? brassMetal :
                     n == "plaque_number" ? fontMaterial :
+                    n == "leaf" ? doorWood :
                     null;
 
                 if (chosen == null)
@@ -596,7 +599,7 @@ public static class HotelBlockoutBuilder
         var textMesh = textGO.AddComponent<TextMesh>();
         textMesh.text = roomNumber;
         textMesh.fontSize = 48;
-        textMesh.characterSize = 0.08f;
+        textMesh.characterSize = 0.05f; // stay well inside the 0.22 x 0.13 plaque plate
         textMesh.anchor = TextAnchor.MiddleCenter;
         textMesh.alignment = TextAlignment.Center;
         textMesh.color = Color.black;
