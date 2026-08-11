@@ -590,7 +590,7 @@ public static class HotelBlockoutBuilder
         plaque.transform.SetParent(parent, false);
         plaque.transform.localPosition = new Vector3(centerX, 1.65f, exteriorZ);
 
-        MakeBox("Plaque_Plate", plaque.transform, new Vector3(0f, 0f, -0.008f), new Vector3(0.34f, 0.22f, 0.015f));
+        MakeBox("Plaque_Plate", plaque.transform, new Vector3(0f, 0f, -0.008f), new Vector3(0.55f, 0.22f, 0.015f));
 
         var textGO = new GameObject("Plaque_Number");
         textGO.transform.SetParent(plaque.transform, false);
