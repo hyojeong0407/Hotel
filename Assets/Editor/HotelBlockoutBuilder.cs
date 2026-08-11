@@ -533,7 +533,7 @@ public static class HotelBlockoutBuilder
         pivot.transform.SetParent(parent, false);
         pivot.transform.localPosition = new Vector3(hingeX, 0f, wallCenterZ);
 
-        float leafWidth = doorWidth - 0.04f;
+        float leafWidth = doorWidth; // fills the opening exactly — no gap between leaf and frame
         MakeBox("Leaf", pivot.transform,
             new Vector3(leafWidth / 2f, doorHeight / 2f, 0f),
             new Vector3(leafWidth, doorHeight, WallThickness));
