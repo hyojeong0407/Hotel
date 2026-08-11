@@ -495,8 +495,9 @@ public static class HotelBlockoutBuilder
         if (!includeBathroom)
             return;
 
-        // Main entry door — hinged at the left jamb, swings into the room
-        BuildDoor(parent, "Room_Door", doorMinX, 0f, DoorWidth, 2.1f);
+        // Main entry door — hinged at the left jamb, swings into the room. Centered on Wall_Front_Left/
+        // Right's own thickness (they sit at z = -WallThickness/2, not z = 0) so the door lines up with the wall.
+        BuildDoor(parent, "Room_Door", doorMinX, -WallThickness / 2f, DoorWidth, CeilingHeight);
 
         var bathroom = new GameObject("Bathroom");
         bathroom.transform.SetParent(parent, false);
@@ -510,8 +511,9 @@ public static class HotelBlockoutBuilder
             new Vector3(bathDoorMinX / 2f, CeilingHeight / 2f, BathLength),
             new Vector3(bathDoorMinX, CeilingHeight, WallThickness));
 
-        // Bathroom door — hinged at the left jamb, swings out into the bedroom (away from the fixtures)
-        BuildDoor(bathroom.transform, "Bath_Door", bathDoorMinX, BathLength, BathDoorWidth, 2f);
+        // Bathroom door — hinged at the left jamb, swings out into the bedroom (away from the fixtures).
+        // Bath_Wall_Front is centered exactly at z = BathLength, so the pivot goes there directly.
+        BuildDoor(bathroom.transform, "Bath_Door", bathDoorMinX, BathLength, BathDoorWidth, CeilingHeight);
 
         BuildBathroomFixtures(bathroom.transform);
         BuildBed(parent, width, length);
@@ -520,18 +522,21 @@ public static class HotelBlockoutBuilder
     }
 
     // Door leaf hinged at the opening's left jamb (hingeX), swinging open in the local +Z direction.
+    // wallCenterZ is the wall's own thickness center (not just "where the opening is"), height matches
+    // the ceiling, and the leaf is as thick as the wall it sits in — so it reads as part of the wall,
+    // not a thin panel floating in a full-height gap.
     // The pivot carries the DoorInteractable script; the leaf is offset from it so rotating the pivot
     // swings the door like a real hinge instead of spinning it in place.
-    static void BuildDoor(Transform parent, string name, float hingeX, float wallZ, float doorWidth, float doorHeight)
+    static void BuildDoor(Transform parent, string name, float hingeX, float wallCenterZ, float doorWidth, float doorHeight)
     {
         var pivot = new GameObject(name);
         pivot.transform.SetParent(parent, false);
-        pivot.transform.localPosition = new Vector3(hingeX, 0f, wallZ);
+        pivot.transform.localPosition = new Vector3(hingeX, 0f, wallCenterZ);
 
         float leafWidth = doorWidth - 0.04f;
         MakeBox("Leaf", pivot.transform,
             new Vector3(leafWidth / 2f, doorHeight / 2f, 0f),
-            new Vector3(leafWidth, doorHeight, 0.045f));
+            new Vector3(leafWidth, doorHeight, WallThickness));
 
         var trigger = new GameObject("InteractZone");
         trigger.transform.SetParent(pivot.transform, false);
