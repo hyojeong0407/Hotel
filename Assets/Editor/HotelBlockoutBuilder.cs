@@ -165,17 +165,26 @@ public static class HotelBlockoutBuilder
 
     static void ApplyLuxuryFurnitureColors(GameObject[] targets)
     {
-        // name -> (color, glossiness, metallic). Glossiness/metallic are picked per real-world material,
-        // not just per object, so everything reads as what it is instead of one flat matte grey.
-        Material velvetRed = NewStandardMaterial(new Color(0.42f, 0.06f, 0.09f), 0.15f, 0f);       // fabric: soft, non-metal
-        Material mahogany = NewStandardMaterial(new Color(0.22f, 0.11f, 0.06f), 0.3f, 0f);          // polished wood
-        Material brassMetal = NewStandardMaterial(new Color(0.55f, 0.42f, 0.15f), 0.6f, 0.75f);     // real metal: high metallic
-        Material mutedGold = NewStandardMaterial(new Color(0.5f, 0.42f, 0.28f), 0.1f, 0f);          // fabric
-        Material blackPlastic = NewStandardMaterial(new Color(0.03f, 0.03f, 0.03f), 0.6f, 0f);      // glossy plastic, non-metal
-        Material mirrorGlass = NewStandardMaterial(new Color(0.6f, 0.6f, 0.62f), 0.92f, 0.85f);     // near-mirror finish
-        Material ceramic = NewStandardMaterial(new Color(0.16f, 0.16f, 0.17f), 0.45f, 0f);          // tub/sink/toilet: glossy, non-metal
-        Material windowGlass = NewStandardMaterial(new Color(0.5f, 0.62f, 0.58f), 0.85f, 0.1f);     // faint blue-green tint
-        Material vinylCurtain = NewStandardMaterial(new Color(0.1f, 0.11f, 0.13f), 0.35f, 0f);      // shower curtain
+        // Procedural textures (no source images in the project) — plain noise shaped per material so
+        // it reads as grain/weave/speckle rather than visible static.
+        Texture2D woodTex = GenerateWoodTexture(new Color(0.22f, 0.11f, 0.06f));
+        Texture2D velvetTex = GenerateFabricTexture(new Color(0.42f, 0.06f, 0.09f));
+        Texture2D goldFabricTex = GenerateFabricTexture(new Color(0.5f, 0.42f, 0.28f));
+        Texture2D ceramicTex = GenerateCeramicTexture(new Color(0.16f, 0.16f, 0.17f));
+        Texture2D brassTex = GenerateMetalTexture(new Color(0.55f, 0.42f, 0.15f));
+        Texture2D vinylTex = GenerateFabricTexture(new Color(0.1f, 0.11f, 0.13f));
+
+        // name -> (color, glossiness, metallic, texture). Glossiness/metallic/texture are picked per
+        // real-world material, not just per object, so everything reads as what it is, not flat grey.
+        Material velvetRed = NewStandardMaterial(new Color(0.42f, 0.06f, 0.09f), 0.15f, 0f, velvetTex, new Vector2(4f, 4f));
+        Material mahogany = NewStandardMaterial(new Color(0.22f, 0.11f, 0.06f), 0.3f, 0f, woodTex, new Vector2(2f, 3f));
+        Material brassMetal = NewStandardMaterial(new Color(0.55f, 0.42f, 0.15f), 0.6f, 0.75f, brassTex, new Vector2(3f, 1.5f));
+        Material mutedGold = NewStandardMaterial(new Color(0.5f, 0.42f, 0.28f), 0.1f, 0f, goldFabricTex, new Vector2(4f, 4f));
+        Material blackPlastic = NewStandardMaterial(new Color(0.03f, 0.03f, 0.03f), 0.6f, 0f);      // glossy plastic, stays smooth
+        Material mirrorGlass = NewStandardMaterial(new Color(0.6f, 0.6f, 0.62f), 0.92f, 0.85f);     // stays smooth for reflection
+        Material ceramic = NewStandardMaterial(new Color(0.16f, 0.16f, 0.17f), 0.45f, 0f, ceramicTex, new Vector2(3f, 3f));
+        Material windowGlass = NewStandardMaterial(new Color(0.5f, 0.62f, 0.58f), 0.85f, 0.1f);     // stays smooth, faint blue-green tint
+        Material vinylCurtain = NewStandardMaterial(new Color(0.1f, 0.11f, 0.13f), 0.35f, 0f, vinylTex, new Vector2(2f, 4f));
 
         var redVelvet = new System.Collections.Generic.HashSet<string> { "seat", "backrest", "armrest_near", "armrest_far", "mattress", "blanket_fold" };
         var gold = new System.Collections.Generic.HashSet<string> { "pillow_1", "pillow_2", "shade" };
@@ -214,13 +223,96 @@ public static class HotelBlockoutBuilder
         Debug.Log($"럭셔리 가구 배색 완료: {count}개 블록 (레드 벨벳/마호가니/브라스/도기/유리).");
     }
 
-    static Material NewStandardMaterial(Color color, float glossiness, float metallic)
+    static Material NewStandardMaterial(Color color, float glossiness, float metallic, Texture2D texture = null, Vector2 tiling = default)
     {
         var mat = new Material(Shader.Find("Standard"));
         mat.color = color;
         mat.SetFloat("_Glossiness", glossiness);
         mat.SetFloat("_Metallic", metallic);
+        if (texture != null)
+        {
+            mat.mainTexture = texture;
+            mat.mainTextureScale = tiling;
+        }
         return mat;
+    }
+
+    // Grain stretched hard along Y (thin noise sampling in X, coarse in Y) plus a faint cross streak.
+    static Texture2D GenerateWoodTexture(Color baseColor)
+    {
+        const int size = 128;
+        var tex = new Texture2D(size, size, TextureFormat.RGB24, false);
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float grain = Mathf.PerlinNoise(x * 0.06f, y * 0.6f);
+                float streak = Mathf.PerlinNoise(x * 0.4f, y * 0.02f);
+                float shade = 0.78f + grain * 0.35f - streak * 0.12f;
+                tex.SetPixel(x, y, baseColor * shade);
+            }
+        }
+        tex.Apply();
+        tex.wrapMode = TextureWrapMode.Repeat;
+        return tex;
+    }
+
+    // Fine, even noise for a woven-fabric feel — used for velvet, muted-gold cloth, and vinyl.
+    static Texture2D GenerateFabricTexture(Color baseColor)
+    {
+        const int size = 64;
+        var tex = new Texture2D(size, size, TextureFormat.RGB24, false);
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float weave = Mathf.PerlinNoise(x * 0.35f, y * 0.35f);
+                float fine = Mathf.PerlinNoise(x * 1.6f, y * 1.6f);
+                float shade = 0.88f + weave * 0.16f + fine * 0.08f;
+                tex.SetPixel(x, y, baseColor * shade);
+            }
+        }
+        tex.Apply();
+        tex.wrapMode = TextureWrapMode.Repeat;
+        return tex;
+    }
+
+    // Very subtle low-frequency mottling, glossy ceramic shouldn't look noisy up close.
+    static Texture2D GenerateCeramicTexture(Color baseColor)
+    {
+        const int size = 64;
+        var tex = new Texture2D(size, size, TextureFormat.RGB24, false);
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float mottle = Mathf.PerlinNoise(x * 0.15f, y * 0.15f);
+                float shade = 0.94f + mottle * 0.08f;
+                tex.SetPixel(x, y, baseColor * shade);
+            }
+        }
+        tex.Apply();
+        tex.wrapMode = TextureWrapMode.Repeat;
+        return tex;
+    }
+
+    // Brushed-metal streaks: fine noise stretched along X, near-flat along Y.
+    static Texture2D GenerateMetalTexture(Color baseColor)
+    {
+        const int size = 64;
+        var tex = new Texture2D(size, size, TextureFormat.RGB24, false);
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float streak = Mathf.PerlinNoise(x * 2.2f, y * 0.06f);
+                float shade = 0.8f + streak * 0.35f;
+                tex.SetPixel(x, y, baseColor * shade);
+            }
+        }
+        tex.Apply();
+        tex.wrapMode = TextureWrapMode.Repeat;
+        return tex;
     }
 
     // Floor 1 has the ground-level lobby (open front desk/passage behind a single entrance wall).
