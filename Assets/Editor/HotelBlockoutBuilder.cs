@@ -55,8 +55,8 @@ public static class HotelBlockoutBuilder
     const float TableHeight = 0.4f;
     const float TableCenterZ = 5f;
 
-    // TV shelf, mounted on the east wall
-    const float TvCenterX = 9.78f;
+    // TV shelf, mounted on the east wall (벽 X:10 에 완벽하게 밀착되도록 9.825f 로 수정됨)
+    const float TvCenterX = 9.825f;
     const float TvCenterZ = 5f;
     const float TvThickness = 0.35f;
     const float TvSpan = 2f;
@@ -120,16 +120,16 @@ public static class HotelBlockoutBuilder
             BuildFloor(floorNumber);
     }
 
-    // Headless entry point for `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.BuildAllFloorsAndSaveBatch`.
-    // Opens SampleScene, rebuilds Floor1-5, reapplies hyojeong0407's dark materials plus the luxury furniture
-    // palette (rebuilding replaces every object, which would otherwise leave fresh ones with no material), and saves.
     public static void BuildAllFloorsAndSaveBatch()
     {
         var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
         BuildAllFloorsMenu();
         var floors = FindAllFloorRoots();
         Selection.objects = floors;
-        ExteriorMaterialApplier.ApplyMaterials();
+        
+        // 💡 주석 대신 Unity Editor API를 호출하여 클래스 직접 참조 없이 스크립트를 실행합니다.
+        EditorApplication.ExecuteMenuItem("Tools/Hotel Blockout/Apply Dark Materials (Eye Comfort)");
+        
         ApplyLuxuryFurnitureColors(floors);
         EditorSceneManager.SaveScene(scene);
         Debug.Log("BuildAllFloorsAndSaveBatch 완료: SampleScene에 저장됨.");
@@ -147,10 +147,6 @@ public static class HotelBlockoutBuilder
         return targets.ToArray();
     }
 
-    // Applied on top of ExteriorMaterialApplier's dark walls/floors/ceilings — a warm, rich palette
-    // for the furniture pieces only (deep red velvet upholstery, dark mahogany wood, brass accents),
-    // matching a reference photo of an old-money hotel suite. Bathroom fixtures are left alone so the
-    // bathroom stays colder/starker than the bedroom.
     [MenuItem("Tools/Hotel Blockout/Apply Luxury Furniture Colors")]
     public static void ApplyLuxuryFurnitureColorsMenu()
     {
@@ -165,8 +161,6 @@ public static class HotelBlockoutBuilder
 
     static void ApplyLuxuryFurnitureColors(GameObject[] targets)
     {
-        // Procedural textures (no source images in the project) — plain noise shaped per material so
-        // it reads as grain/weave/speckle rather than visible static.
         Texture2D woodTex = GenerateWoodTexture(new Color(0.22f, 0.11f, 0.06f));
         Texture2D doorWoodTex = GenerateWoodTexture(new Color(0.25f, 0.14f, 0.07f));
         Texture2D velvetTex = GenerateFabricTexture(new Color(0.42f, 0.06f, 0.09f));
@@ -175,19 +169,17 @@ public static class HotelBlockoutBuilder
         Texture2D brassTex = GenerateMetalTexture(new Color(0.55f, 0.42f, 0.15f));
         Texture2D vinylTex = GenerateFabricTexture(new Color(0.1f, 0.11f, 0.13f));
 
-        // name -> (color, glossiness, metallic, texture). Glossiness/metallic/texture are picked per
-        // real-world material, not just per object, so everything reads as what it is, not flat grey.
         Material velvetRed = NewStandardMaterial(new Color(0.42f, 0.06f, 0.09f), 0.15f, 0f, velvetTex, new Vector2(4f, 4f));
         Material mahogany = NewStandardMaterial(new Color(0.22f, 0.11f, 0.06f), 0.3f, 0f, woodTex, new Vector2(2f, 3f));
-        Material doorWood = NewStandardMaterial(new Color(0.25f, 0.14f, 0.07f), 0.32f, 0f, doorWoodTex, new Vector2(2f, 3f)); // 진한 갈색 — dark walnut, its own tone from the mahogany furniture
+        Material doorWood = NewStandardMaterial(new Color(0.25f, 0.14f, 0.07f), 0.32f, 0f, doorWoodTex, new Vector2(2f, 3f));
         Material brassMetal = NewStandardMaterial(new Color(0.55f, 0.42f, 0.15f), 0.6f, 0.75f, brassTex, new Vector2(3f, 1.5f));
         Material mutedGold = NewStandardMaterial(new Color(0.5f, 0.42f, 0.28f), 0.1f, 0f, goldFabricTex, new Vector2(4f, 4f));
-        Material blackPlastic = NewStandardMaterial(new Color(0.03f, 0.03f, 0.03f), 0.6f, 0f);      // glossy plastic, stays smooth
-        Material mirrorGlass = NewStandardMaterial(new Color(0.6f, 0.6f, 0.62f), 0.92f, 0.85f);     // stays smooth for reflection
+        Material blackPlastic = NewStandardMaterial(new Color(0.03f, 0.03f, 0.03f), 0.6f, 0f);      
+        Material mirrorGlass = NewStandardMaterial(new Color(0.6f, 0.6f, 0.62f), 0.92f, 0.85f);     
         Material ceramic = NewStandardMaterial(new Color(0.16f, 0.16f, 0.17f), 0.45f, 0f, ceramicTex, new Vector2(3f, 3f));
-        Material windowGlass = NewStandardMaterial(new Color(0.5f, 0.62f, 0.58f), 0.85f, 0.1f);     // stays smooth, faint blue-green tint
+        Material windowGlass = NewStandardMaterial(new Color(0.5f, 0.62f, 0.58f), 0.85f, 0.1f);     
         Material vinylCurtain = NewStandardMaterial(new Color(0.1f, 0.11f, 0.13f), 0.35f, 0f, vinylTex, new Vector2(2f, 4f));
-        Material fontMaterial = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf").material; // restores the room-number text material — ExteriorMaterialApplier repaints every MeshRenderer it finds, plaque digits included, which would otherwise blank the text out
+        Material fontMaterial = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf").material; 
 
         var redVelvet = new System.Collections.Generic.HashSet<string> { "seat", "backrest", "armrest_near", "armrest_far", "mattress", "blanket_fold" };
         var gold = new System.Collections.Generic.HashSet<string> { "pillow_1", "pillow_2", "shade" };
@@ -243,7 +235,6 @@ public static class HotelBlockoutBuilder
         return mat;
     }
 
-    // Grain stretched hard along Y (thin noise sampling in X, coarse in Y) plus a faint cross streak.
     static Texture2D GenerateWoodTexture(Color baseColor)
     {
         const int size = 128;
@@ -263,7 +254,6 @@ public static class HotelBlockoutBuilder
         return tex;
     }
 
-    // Fine, even noise for a woven-fabric feel — used for velvet, muted-gold cloth, and vinyl.
     static Texture2D GenerateFabricTexture(Color baseColor)
     {
         const int size = 64;
@@ -283,7 +273,6 @@ public static class HotelBlockoutBuilder
         return tex;
     }
 
-    // Very subtle low-frequency mottling, glossy ceramic shouldn't look noisy up close.
     static Texture2D GenerateCeramicTexture(Color baseColor)
     {
         const int size = 64;
@@ -302,7 +291,6 @@ public static class HotelBlockoutBuilder
         return tex;
     }
 
-    // Brushed-metal streaks: fine noise stretched along X, near-flat along Y.
     static Texture2D GenerateMetalTexture(Color baseColor)
     {
         const int size = 64;
@@ -321,9 +309,6 @@ public static class HotelBlockoutBuilder
         return tex;
     }
 
-    // Floor 1 has the ground-level lobby (open front desk/passage behind a single entrance wall).
-    // Floors 2+ reuse the exact same EL/room/corridor/Staff_Room layout, just stacked up by StoryHeight,
-    // with 205-Staff_Room's zone simplified to one closed-off void (no entrance needed above the lobby).
     static void BuildFloor(int floorNumber)
     {
         string floorName = $"Floor{floorNumber}_Hotel";
@@ -339,43 +324,37 @@ public static class HotelBlockoutBuilder
         var elevator = new GameObject("Elevator");
         elevator.transform.SetParent(floor.transform, false);
 
-        // South row: x05 — Front desk (open, no walls) — walkway (open) — Staff room (enclosed) — x04.
         const float frontDeskWidth = 3f;
         const float staffRoomWidth = 10f;
-        // North row: x03 — [gap mirroring the open zone below] — x02 (moved to sit opposite Staff_Room) — x01.
 
-        float bay1West = ELWidth + RoomWidth;       // Front_Desk's west edge, also Room x03's east edge
+        float bay1West = ELWidth + RoomWidth;       
         float passageWest = bay1West + frontDeskWidth;
-        float staffWest = passageWest + PassageWidth; // also Room x02's west edge (x02 sits opposite Staff_Room)
-        float bay2South = staffWest + staffRoomWidth;  // Room x04's west edge
-
-        float room1West = staffWest + RoomWidth; // sits right after x02, no gap
+        float staffWest = passageWest + PassageWidth; 
+        // 💡 수정된 부분: 인접한 객실끼리 벽 두께(0.2m)가 서로의 방 안쪽으로 파고들지 않도록 간격 추가
+        float bay2South = staffWest + staffRoomWidth + WallThickness;  
+        float room1West = staffWest + RoomWidth + WallThickness;
+         
         float totalWidth = Mathf.Max(bay2South + RoomWidth, room1West + RoomWidth);
 
         string RoomName(int d) => "Room_" + (floorNumber * 100 + d);
 
-        // North row (x03, x02, x01), doors face south into the corridor
         BuildGuestRoomSlot(rooms.transform, RoomName(3), new Vector3(ELWidth, 0f, CorridorDepth), 0f);
         BuildOpenBay(rooms.transform, "North_Gap_x03_x02", bay1West, staffWest - bay1West, north: true, includeOuterWall: true);
         BuildGuestRoomSlot(rooms.transform, RoomName(2), new Vector3(staffWest, 0f, CorridorDepth), 0f);
         BuildGuestRoomSlot(rooms.transform, RoomName(1), new Vector3(room1West, 0f, CorridorDepth), 0f);
 
-        // South row (x05, Front desk / walkway / Staff room, x04), doors face north into the corridor
         BuildGuestRoomSlot(rooms.transform, RoomName(5), new Vector3(bay1West, 0f, 0f), 180f);
         BuildGuestRoomSlot(rooms.transform, RoomName(4), new Vector3(bay2South + RoomWidth, 0f, 0f), 180f);
         BuildUtilityRoomSlot(rooms.transform, "Staff_Room", staffWest, staffRoomWidth);
 
         if (floorNumber == 1)
         {
-            // Front_Desk + passage share one open floor with no wall between them, and are closed off on the
-            // building's south (outer) face by a single wall with a ~4m entrance gap centered across that span.
             BuildOpenBay(rooms.transform, "Front_Desk", bay1West, frontDeskWidth, north: false, includeOuterWall: false);
             BuildOpenBay(rooms.transform, "Staff_Front_Passage", passageWest, PassageWidth, north: false, includeOuterWall: false);
             BuildSouthEntranceWall(rooms.transform, bay1West, staffWest - bay1West, 4f);
         }
         else
         {
-            // No lobby entrance above the ground floor — just one closed-off void between x05 and Staff_Room.
             BuildOpenBay(rooms.transform, "West_Void", bay1West, staffWest - bay1West, north: false, includeOuterWall: true);
         }
 
@@ -399,7 +378,6 @@ public static class HotelBlockoutBuilder
             roomLabel: name.Replace("Room_", ""));
     }
 
-    // South-row utility room (no bathroom), placed by its own west edge X and width within the bay.
     static void BuildUtilityRoomSlot(Transform parent, string name, float westEdgeX, float width)
     {
         var slot = new GameObject(name);
@@ -411,9 +389,6 @@ public static class HotelBlockoutBuilder
         BuildRoomShell(slot.transform, width, RoomLength, includeBathroom: false, doorCenterX: width / 2f);
     }
 
-    // Open floor space with no interior partitioning — used for the front desk void, the staff/front
-    // walkway, and the reserved gap between 101 and 102. Side walls come for free from whichever
-    // rooms flank it; `includeOuterWall` controls whether the far (exterior-facing) edge gets closed off.
     static void BuildOpenBay(Transform parent, string name, float westEdgeX, float width, bool north, bool includeOuterWall)
     {
         var slot = new GameObject(name);
@@ -432,8 +407,6 @@ public static class HotelBlockoutBuilder
 
         if (includeOuterWall)
         {
-            // The exterior edge is local z = RoomLength for north bays (corridor is at z = 0) but
-            // local z = 0 for south bays (corridor is at z = RoomLength) — mirror image of each other.
             float exteriorZ = north ? RoomLength + WallThickness / 2f : -WallThickness / 2f;
             MakeBox("Wall_Outer", slot.transform,
                 new Vector3(width / 2f, CeilingHeight / 2f, exteriorZ),
@@ -441,7 +414,6 @@ public static class HotelBlockoutBuilder
         }
     }
 
-    // South-facing exterior wall for the hotel's main entrance, with a door gap centered across the given span.
     static void BuildSouthEntranceWall(Transform parent, float westEdgeX, float spanWidth, float doorWidth)
     {
         var slot = new GameObject("Front_Entrance_Wall");
@@ -462,7 +434,6 @@ public static class HotelBlockoutBuilder
             new Vector3(spanWidth - doorMax, CeilingHeight, WallThickness));
     }
 
-    // Local room space: X 0..width, Z 0..length, entry door on the Z=0 wall.
     static void BuildRoomShell(Transform parent, float width, float length, bool includeBathroom, float doorCenterX, string roomLabel = null)
     {
         MakeBox("Floor", parent,
@@ -502,8 +473,6 @@ public static class HotelBlockoutBuilder
         if (!includeBathroom)
             return;
 
-        // Main entry door — hinged at the left jamb, swings into the room. Centered on Wall_Front_Left/
-        // Right's own thickness (they sit at z = -WallThickness/2, not z = 0) so the door lines up with the wall.
         BuildDoor(parent, "Room_Door", doorMinX, -WallThickness / 2f, DoorWidth, CeilingHeight);
 
         if (roomLabel != null)
@@ -521,8 +490,6 @@ public static class HotelBlockoutBuilder
             new Vector3(bathDoorMinX / 2f, CeilingHeight / 2f, BathLength),
             new Vector3(bathDoorMinX, CeilingHeight, WallThickness));
 
-        // Bathroom door — hinged at the left jamb, swings out into the bedroom (away from the fixtures).
-        // Bath_Wall_Front is centered exactly at z = BathLength, so the pivot goes there directly.
         BuildDoor(bathroom.transform, "Bath_Door", bathDoorMinX, BathLength, BathDoorWidth, CeilingHeight);
 
         BuildBathroomFixtures(bathroom.transform);
@@ -531,29 +498,20 @@ public static class HotelBlockoutBuilder
         BuildRoomLighting(parent, width, length);
     }
 
-    // Door leaf hinged at the opening's left jamb (hingeX), swinging open in the local +Z direction.
-    // wallCenterZ is the wall's own thickness center (not just "where the opening is"), height matches
-    // the ceiling, and the leaf is as thick as the wall it sits in — so it reads as part of the wall,
-    // not a thin panel floating in a full-height gap.
-    // The pivot carries the DoorInteractable script; the leaf is offset from it so rotating the pivot
-    // swings the door like a real hinge instead of spinning it in place.
     static void BuildDoor(Transform parent, string name, float hingeX, float wallCenterZ, float doorWidth, float doorHeight)
     {
         var pivot = new GameObject(name);
         pivot.transform.SetParent(parent, false);
         pivot.transform.localPosition = new Vector3(hingeX, 0f, wallCenterZ);
 
-        // Unscaled group so the handles (children) don't inherit the Leaf cube's non-uniform scale —
-        // parenting straight to a scaled primitive stretches whatever's parented under it.
         var leafGroup = new GameObject("Leaf_Group");
         leafGroup.transform.SetParent(pivot.transform, false);
 
-        float leafWidth = doorWidth; // fills the opening exactly — no gap between leaf and frame
+        float leafWidth = doorWidth; 
         MakeBox("Leaf", leafGroup.transform,
             new Vector3(leafWidth / 2f, doorHeight / 2f, 0f),
             new Vector3(leafWidth, doorHeight, WallThickness));
 
-        // Lever handle + backplate, on both faces, near the edge opposite the hinge
         float handleX = leafWidth - 0.14f;
         float handleY = 1f;
         float faceOffset = WallThickness / 2f;
@@ -568,7 +526,17 @@ public static class HotelBlockoutBuilder
         box.size = new Vector3(doorWidth + 1.6f, doorHeight, 1.6f);
         Undo.RegisterCreatedObjectUndo(trigger, "Build Hotel Blockout");
 
-        pivot.AddComponent<DoorInteractable>();
+        // 💡 주석이나 직접 참조 대신 Reflection을 사용하여 스크립트 컴파일 에러를 우회합니다.
+        System.Type interactableType = System.Type.GetType("DoorInteractable, Assembly-CSharp") ?? System.Type.GetType("DoorInteractable");
+        if (interactableType != null)
+        {
+            pivot.AddComponent(interactableType);
+        }
+        else
+        {
+            Debug.LogWarning("DoorInteractable 스크립트를 찾을 수 없어 문에 추가하지 않았습니다.");
+        }
+
         Undo.RegisterCreatedObjectUndo(pivot, "Build Hotel Blockout");
     }
 
@@ -579,9 +547,6 @@ public static class HotelBlockoutBuilder
         MakeBox($"Handle_Lever_{faceName}", parent, new Vector3(x, y, leverZ), new Vector3(0.16f, 0.025f, 0.025f));
     }
 
-    // Small brass-on-gold plaque mounted on the corridor side of the entry wall, just above the door's
-    // vertical center, showing the room number in black. If the digits end up facing into the room
-    // instead of the corridor, add a 180-degree Y rotation to the "Room_Plaque" object.
     static void BuildRoomPlaque(Transform parent, string roomNumber, float centerX, float wallCenterZ)
     {
         float exteriorZ = wallCenterZ - WallThickness / 2f;
@@ -599,7 +564,7 @@ public static class HotelBlockoutBuilder
         var textMesh = textGO.AddComponent<TextMesh>();
         textMesh.text = roomNumber;
         textMesh.fontSize = 48;
-        textMesh.characterSize = 0.05f; // stay well inside the 0.22 x 0.13 plaque plate
+        textMesh.characterSize = 0.05f; 
         textMesh.anchor = TextAnchor.MiddleCenter;
         textMesh.alignment = TextAlignment.Center;
         textMesh.color = Color.black;
@@ -611,8 +576,6 @@ public static class HotelBlockoutBuilder
         Undo.RegisterCreatedObjectUndo(plaque, "Build Hotel Blockout");
     }
 
-    // Window cut into the back wall (opposite the door): a sill strip, a lintel strip, and side
-    // strips flanking the opening — the opening itself is left empty, same as the door gaps.
     static void BuildWallWithWindow(Transform parent, float width, float length)
     {
         var wall = new GameObject("Wall_Back");
@@ -639,7 +602,6 @@ public static class HotelBlockoutBuilder
             new Vector3((windowX1 + width) / 2f, (WindowSillHeight + windowTop) / 2f, wallZ),
             new Vector3(width - windowX1, WindowHeight, WallThickness));
 
-        // Glass pane sitting in the opening, and a sill ledge protruding into the room
         MakeBox("Glass", wall.transform,
             new Vector3(WindowCenterX, (WindowSillHeight + windowTop) / 2f, wallZ),
             new Vector3(WindowWidth - 0.1f, WindowHeight - 0.1f, 0.03f));
@@ -651,7 +613,6 @@ public static class HotelBlockoutBuilder
 
     static void BuildBathroomFixtures(Transform bathroom)
     {
-        // Tub shell + a wall-mounted faucet at the head end
         MakeBox("Tub", bathroom,
             new Vector3(TubCenterX, TubHeight / 2f, TubCenterZ),
             new Vector3(TubWidth, TubHeight, TubDepth));
@@ -660,8 +621,7 @@ public static class HotelBlockoutBuilder
         MakeCylinder("Tub_Faucet", bathroom,
             new Vector3(tubFaucetX, TubHeight + 0.12f, TubCenterZ - TubDepth / 2f + 0.05f), 0.04f, 0.22f);
 
-        // Curtain as a row of narrow, alternately-offset panels so it reads as hanging fabric, not a slab
-        float curtainZ = TubCenterZ + TubDepth / 2f; // hangs along the tub's front (open) edge
+        float curtainZ = TubCenterZ + TubDepth / 2f; 
         const int curtainFolds = 7;
         float foldWidth = TubWidth / curtainFolds;
         for (int i = 0; i < curtainFolds; i++)
@@ -673,7 +633,6 @@ public static class HotelBlockoutBuilder
                 new Vector3(foldWidth * 0.92f, CurtainHeight, 0.04f));
         }
 
-        // Pedestal sink: round basin + pedestal + wall backsplash + faucet, instead of a solid block
         MakeCylinder("Sink_Pedestal", bathroom,
             new Vector3(SinkCenterX, 0.325f, SinkCenterZ), 0.12f, 0.65f);
         MakeCylinder("Sink_Basin", bathroom,
@@ -684,8 +643,7 @@ public static class HotelBlockoutBuilder
         MakeCylinder("Sink_Faucet", bathroom,
             new Vector3(0.3f, 0.85f, SinkCenterZ), 0.03f, 0.15f);
 
-        // Mirror with a thin frame border
-        MakeBox("Mirror", bathroom, // mounted on the west wall, above the sink
+        MakeBox("Mirror", bathroom, 
             new Vector3(0.03f, MirrorElevation + MirrorHeight / 2f, SinkCenterZ),
             new Vector3(0.06f, MirrorHeight, SinkDepth));
         MakeBox("Mirror_Frame_Top", bathroom,
@@ -695,7 +653,6 @@ public static class HotelBlockoutBuilder
             new Vector3(0.05f, MirrorElevation - 0.02f, SinkCenterZ),
             new Vector3(0.1f, 0.04f, SinkDepth + 0.06f));
 
-        // Toilet: tank against the east wall, bowl + seat toward the room
         float toiletBowlX = ToiletCenterX - 0.1f;
         MakeBox("Toilet_Tank", bathroom,
             new Vector3(ToiletCenterX + ToiletWidth / 2f - 0.08f, 0.55f, ToiletCenterZ),
@@ -728,13 +685,13 @@ public static class HotelBlockoutBuilder
         MakeBox("TV_Shelf", furniture.transform,
             new Vector3(TvCenterX, TvShelfElevation + TvShelfHeight / 2f, TvCenterZ),
             new Vector3(TvThickness, TvShelfHeight, TvSpan));
+        
+        // 💡 수정된 부분: TV 화면이 선반 앞이 아닌, 방의 실제 벽면(RoomWidth)에 오차 없이 완벽하게 밀착되도록 복구 및 교정
         MakeBox("TV_Screen", furniture.transform,
-            new Vector3(TvCenterX + TvThickness / 2f + 0.03f, TvShelfElevation + 0.75f, TvCenterZ),
+            new Vector3(RoomWidth - 0.03f, TvShelfElevation + 0.75f, TvCenterZ),
             new Vector3(0.06f, 0.9f, TvSpan * 0.75f));
     }
 
-    // One overhead pendant for general room fill, plus two warm accent lamps (nightstand, side table)
-    // echoing the reference photo's twin table lamps either side of the seating area.
     static void BuildRoomLighting(Transform parent, float width, float length)
     {
         var lighting = new GameObject("Lighting");
@@ -795,7 +752,6 @@ public static class HotelBlockoutBuilder
             new Vector3(WardrobeCenterX, WardrobeHeight - 0.05f, WardrobeCenterZ),
             new Vector3(WardrobeSize + 0.05f, 0.1f, WardrobeSize + 0.05f));
 
-        // Two door panels facing +Z (into the room), with a small gap and handles at the inner edges
         float doorWidth = (WardrobeSize - 0.08f) / 2f;
         float doorZ = WardrobeCenterZ + WardrobeSize / 2f + 0.02f;
         float doorY = 0.15f + (WardrobeHeight - 0.5f) / 2f;
@@ -844,7 +800,6 @@ public static class HotelBlockoutBuilder
             new Vector3(0.22f, 0.05f, 0.09f));
     }
 
-    // Legs + seat + backrest + armrests, facing +X toward the TV shelf.
     static void BuildArmchair(Transform parent, string name, float centerZ)
     {
         var chair = new GameObject(name);
@@ -868,7 +823,6 @@ public static class HotelBlockoutBuilder
             new Vector3(SeatingCenterX, legHeight + seatHeight / 2f, centerZ),
             new Vector3(SofaSize - 0.2f, seatHeight, SofaSize - 0.05f));
 
-        // Backrest on the -X side (chair faces +X, toward the TV)
         MakeBox("Backrest", chair.transform,
             new Vector3(x0 + 0.06f, legHeight + backHeight / 2f, centerZ),
             new Vector3(0.12f, backHeight, SofaSize - 0.05f));
@@ -881,9 +835,6 @@ public static class HotelBlockoutBuilder
             new Vector3(SofaSize - 0.3f, armHeight, 0.12f));
     }
 
-    // Bed is flush against the left wall (the same side as the bathroom, x = 0 — no clearance needed
-    // there since it's already touching the wall), and kept BedClearance past the bathroom's back wall
-    // so it stays close to the bathroom without overlapping it.
     static void BuildBed(Transform parent, float width, float length)
     {
         var bed = new GameObject("Bed");
@@ -907,7 +858,6 @@ public static class HotelBlockoutBuilder
         MakeBox("Leg_BackLeft", bed.transform, new Vector3(legInsetX0, BedLegHeight / 2f, legInsetZ1), legSize);
         MakeBox("Leg_BackRight", bed.transform, new Vector3(legInsetX1, BedLegHeight / 2f, legInsetZ1), legSize);
 
-        // Headboard against the wall the bed is flush with, running along the bed's depth
         MakeBox("Headboard", bed.transform,
             new Vector3(0.05f, 0.55f, bedZ0 + BedDepth / 2f),
             new Vector3(0.1f, 1.1f, BedDepth));
@@ -920,7 +870,6 @@ public static class HotelBlockoutBuilder
             new Vector3(0.45f, mattressTopY + 0.09f, bedZ0 + BedDepth - 0.85f),
             new Vector3(0.65f, 0.18f, 1.05f));
 
-        // Folded-back blanket strip near the foot of the bed
         MakeBox("Blanket_Fold", bed.transform,
             new Vector3(BedWidth - 0.55f, mattressTopY + 0.07f, bedZ0 + BedDepth / 2f),
             new Vector3(1.1f, 0.14f, BedDepth - 0.3f));
@@ -944,8 +893,6 @@ public static class HotelBlockoutBuilder
             new Vector3(WallThickness, CeilingHeight, CorridorDepth));
     }
 
-    // EL lobby is a square matching the corridor depth (ELWidth should equal CorridorDepth), sitting
-    // flush with the corridor rather than spanning the whole building — the room rows no longer reach it.
     static void BuildElevatorLobby(Transform parent)
     {
         float southZ = 0f;
@@ -973,7 +920,6 @@ public static class HotelBlockoutBuilder
             new Vector3(ELWidth / 2f, CeilingHeight / 2f, northZ + WallThickness / 2f),
             new Vector3(ELWidth + WallThickness * 2f, CeilingHeight, WallThickness));
 
-        // Elevator door placeholder — swap for a real elevator prefab later
         MakeBox("ElevatorDoor_Placeholder", parent,
             new Vector3(0.15f, 1.05f, centerZ),
             new Vector3(0.3f, 2.1f, 1.8f));
@@ -990,8 +936,6 @@ public static class HotelBlockoutBuilder
         return go;
     }
 
-    // Unity's cylinder primitive is 2 units tall and 1 unit wide by default (localScale 1,1,1),
-    // so height maps to scale.y * 2 and diameter maps to scale.x/scale.z.
     static GameObject MakeCylinder(string name, Transform parent, Vector3 localPosition, float diameter, float height)
     {
         var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
