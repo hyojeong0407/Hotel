@@ -33,27 +33,8 @@ public static class CorridorDecorationBuilder
         AddLight(root.transform, new Vector3(10f, 2.4f, 2f), light1F, 4f, 8f);
         AddLight(root.transform, new Vector3(29f, 2.4f, 2f), light1F, 4f, 8f);
 
-        GameObject staffRoom = new GameObject("Staff_Room_Decor");
-        staffRoom.transform.SetParent(root.transform, false); 
-        
-        for (int i = 0; i < 5; i++)
-        {
-            MakeBlockout(staffRoom.transform, $"Locker_{i}", PrimitiveType.Cube, new Vector3(25f + i * 0.8f, 1f, -7.5f), new Vector3(0.7f, 2f, 0.6f), new Color(0.25f, 0.25f, 0.25f));
-        }
-
-        MakeBlockout(staffRoom.transform, "Break_Table", PrimitiveType.Cube, new Vector3(29f, 0.4f, -4f), new Vector3(2.5f, 0.8f, 1.5f), new Color(0.3f, 0.2f, 0.15f));
-        
-        // 💡 실린더 Y스케일 교정 (0.5 -> 0.25)
-        MakeBlockout(staffRoom.transform, "Chair_1", PrimitiveType.Cylinder, new Vector3(28f, 0.25f, -3f), new Vector3(0.5f, 0.25f, 0.5f), Color.white);
-        MakeBlockout(staffRoom.transform, "Chair_2", PrimitiveType.Cylinder, new Vector3(30f, 0.25f, -3f), new Vector3(0.5f, 0.25f, 0.5f), Color.white);
-        MakeBlockout(staffRoom.transform, "Chair_3", PrimitiveType.Cylinder, new Vector3(29f, 0.25f, -5f), new Vector3(0.5f, 0.25f, 0.5f), Color.white);
-        
-        MakeBlockout(staffRoom.transform, "Cot_Bed", PrimitiveType.Cube, new Vector3(32.5f, 0.3f, -2f), new Vector3(1f, 0.4f, 2.5f), new Color(0.2f, 0.3f, 0.2f));
-
-        MakeBlockout(staffRoom.transform, "Rulebook_Board", PrimitiveType.Cube, new Vector3(25f, 1.5f, -0.05f), new Vector3(2f, 1.2f, 0.1f), Color.white); 
-        MakeBlockout(staffRoom.transform, "Status_Board", PrimitiveType.Cube, new Vector3(27.5f, 1.5f, -0.05f), new Vector3(1.5f, 1f, 0.1f), Color.gray); 
-
-        AddLight(staffRoom.transform, new Vector3(29f, 2.4f, -4f), new Color(0.85f, 0.9f, 1f), 3.5f, 7f);
+        // 💡 1층 스태프룸 통합 함수 호출
+        BuildStandardStaffRoom(root.transform);
 
         Debug.Log("1F 복도 및 스태프룸 장식 세팅 완료!");
     }
@@ -75,8 +56,6 @@ public static class CorridorDecorationBuilder
         MakeBlockout(northGap.transform, "Armchair_Right", PrimitiveType.Cube, new Vector3(1.5f, 0.4f, 2f), new Vector3(1f, 0.8f, 1f), Color.white);
         MakeBlockout(northGap.transform, "Tea_Table", PrimitiveType.Cylinder, new Vector3(0, 0.3f, 2f), new Vector3(1.2f, 0.3f, 1.2f), Color.white);
         MakeBlockout(northGap.transform, "Console_Table", PrimitiveType.Cube, new Vector3(2.5f, 0.4f, 0f), new Vector3(1.5f, 0.8f, 0.4f), Color.white);
-        
-        // 💡 꽃병 Y위치 및 스케일 교정 (콘솔 테이블 위에 완벽하게 올라가도록)
         MakeBlockout(northGap.transform, "Porcelain_Vase", PrimitiveType.Cylinder, new Vector3(2.5f, 1.0f, 0f), new Vector3(0.3f, 0.2f, 0.3f), Color.white);
 
         GameObject westVoid = new GameObject("West_Void_Decor");
@@ -105,26 +84,15 @@ public static class CorridorDecorationBuilder
         AddWallSconce(root.transform, "Sconce_Room3", new Vector3(11.9f, 1.8f, 3.75f), 0f, light2F);
         AddWallSconce(root.transform, "Sconce_Room4", new Vector3(36.3f, 1.8f, 0.25f), 180f, light2F);
         AddWallSconce(root.transform, "Sconce_Room5", new Vector3(6.1f, 1.8f, 0.25f), 180f, light2F);
+        
+        // 💡 2층 스태프룸 입구 벽부등 추가
+        AddWallSconce(root.transform, "Sconce_StaffRoom", new Vector3(29.8f, 1.8f, 0.25f), 180f, light2F);
 
         AddWelcomeMats(root.transform, "Elegant_Mat", new Color(0.5f, 0.1f, 0.1f));
-
         AddLight(root.transform, new Vector3(10f, 2.4f, 2f), light2F, 4f, 8f);
 
-        GameObject staffRoom = new GameObject("Staff_Room_Decor");
-        staffRoom.transform.SetParent(root.transform, false);
-        
-        for (int i = 0; i < 5; i++)
-        {
-            MakeBlockout(staffRoom.transform, $"Wood_Cabinet_{i}", PrimitiveType.Cube, new Vector3(25f + i * 0.8f, 1f, -7.5f), new Vector3(0.7f, 2f, 0.6f), new Color(0.3f, 0.15f, 0.05f));
-        }
-        
-        // 💡 실린더 Y스케일 교정 (테이블과 조각상 모두 바닥에 착 붙도록 수정됨)
-        MakeBlockout(staffRoom.transform, "Elegant_TeaTable", PrimitiveType.Cylinder, new Vector3(29f, 0.4f, -4f), new Vector3(2f, 0.4f, 2f), Color.white);
-        MakeBlockout(staffRoom.transform, "Armchair_1", PrimitiveType.Cube, new Vector3(27.5f, 0.5f, -4f), new Vector3(1f, 1f, 1f), Color.white);
-        MakeBlockout(staffRoom.transform, "Armchair_2", PrimitiveType.Cube, new Vector3(30.5f, 0.5f, -4f), new Vector3(1f, 1f, 1f), Color.white);
-        MakeBlockout(staffRoom.transform, "Statue", PrimitiveType.Cylinder, new Vector3(32.5f, 1f, -2f), new Vector3(0.8f, 1f, 0.8f), Color.white);
-        
-        AddLight(staffRoom.transform, new Vector3(29f, 2.4f, -4f), new Color(1f, 0.8f, 0.5f), 4f, 7f);
+        // 💡 2층 스태프룸 통합 함수 호출
+        BuildStandardStaffRoom(root.transform);
 
         Debug.Log("2F 복도 장식 및 조명 세팅 완료!");
     }
@@ -179,19 +147,14 @@ public static class CorridorDecorationBuilder
         AddWallSconce(root.transform, "Sconce_Room4", new Vector3(36.3f, 1.8f, 0.25f), 180f, light3F);
         AddWallSconce(root.transform, "Sconce_Room5", new Vector3(6.1f, 1.8f, 0.25f), 180f, light3F);
 
+        // 💡 3층 스태프룸 입구 벽부등 추가
+        AddWallSconce(root.transform, "Sconce_StaffRoom", new Vector3(29.8f, 1.8f, 0.25f), 180f, light3F);
+
         AddWelcomeMats(root.transform, "Dirty_Mat", new Color(0.3f, 0.3f, 0.3f));
         AddLight(root.transform, new Vector3(10f, 2.4f, 2f), light3F, 3f, 7f);
 
-        GameObject staffRoom = new GameObject("Staff_Room_Decor");
-        staffRoom.transform.SetParent(root.transform, false);
-        
-        MakeBlockout(staffRoom.transform, "Locker_Broken", PrimitiveType.Cube, new Vector3(25f, 1f, -7.5f), new Vector3(0.7f, 2f, 0.6f), Color.gray);
-        GameObject fallenLocker = MakeBlockout(staffRoom.transform, "Locker_Fallen", PrimitiveType.Cube, new Vector3(26.5f, 0.3f, -6f), new Vector3(0.7f, 2f, 0.6f), Color.gray);
-        fallenLocker.transform.localRotation = Quaternion.Euler(90f, 15f, 0f);
-        MakeBlockout(staffRoom.transform, "Smashed_Table", PrimitiveType.Cube, new Vector3(29f, 0.2f, -4f), new Vector3(2.5f, 0.4f, 1.5f), new Color(0.2f, 0.2f, 0.2f));
-        MakeBlockout(staffRoom.transform, "Trash_Pile", PrimitiveType.Sphere, new Vector3(29f, 0.3f, -4f), new Vector3(1.5f, 0.5f, 1.5f), new Color(0.1f, 0.1f, 0.1f));
-        MakeBlockout(staffRoom.transform, "Creepy_Linen_Cart", PrimitiveType.Cube, new Vector3(32.5f, 0.8f, -2f), new Vector3(1.2f, 1.6f, 1.8f), Color.white);
-        AddLight(staffRoom.transform, new Vector3(29f, 2.4f, -4f), new Color(0.5f, 0.6f, 0.6f), 3f, 7f);
+        // 💡 3층 스태프룸 통합 함수 호출
+        BuildStandardStaffRoom(root.transform);
 
         Debug.Log("3F 복도 장식 및 조명 세팅 완료!");
     }
@@ -220,7 +183,6 @@ public static class CorridorDecorationBuilder
 
         MakeBlockout(westVoid.transform, "Tapestry", PrimitiveType.Cube, new Vector3(0, 1.5f, -3.9f), new Vector3(5f, 2f, 0.1f), Color.white);
         
-        // 💡 화로 및 양초 Y스케일 모두 교정
         MakeBlockout(westVoid.transform, "Brazier", PrimitiveType.Cylinder, new Vector3(0, 0.5f, -2f), new Vector3(1f, 0.5f, 1f), Color.white);
         MakeBlockout(westVoid.transform, "Candle_1", PrimitiveType.Cylinder, new Vector3(1f, 0.1f, -1.5f), new Vector3(0.1f, 0.1f, 0.1f), Color.white);
         MakeBlockout(westVoid.transform, "Candle_2", PrimitiveType.Cylinder, new Vector3(-0.8f, 0.1f, -2.2f), new Vector3(0.1f, 0.1f, 0.1f), Color.white);
@@ -246,23 +208,14 @@ public static class CorridorDecorationBuilder
         AddWallSconce(root.transform, "Sconce_Room4", new Vector3(36.3f, 1.8f, 0.25f), 180f, light5F);
         AddWallSconce(root.transform, "Sconce_Room5", new Vector3(6.1f, 1.8f, 0.25f), 180f, light5F);
 
+        // 💡 5층 스태프룸 입구 벽부등 추가
+        AddWallSconce(root.transform, "Sconce_StaffRoom", new Vector3(29.8f, 1.8f, 0.25f), 180f, light5F);
+
         AddWelcomeMats(root.transform, "Bloody_Mat", new Color(0.4f, 0f, 0f));
         AddLight(root.transform, new Vector3(10f, 2.4f, 2f), light5F, 5f, 8f);
 
-        GameObject staffRoom = new GameObject("Staff_Room_Decor");
-        staffRoom.transform.SetParent(root.transform, false);
-        
-        MakeBlockout(staffRoom.transform, "Trunk_Pile_1", PrimitiveType.Cube, new Vector3(26f, 0.5f, -7f), new Vector3(1.5f, 1f, 1f), Color.black);
-        MakeBlockout(staffRoom.transform, "Trunk_Pile_2", PrimitiveType.Cube, new Vector3(26f, 1.2f, -7f), new Vector3(1f, 0.4f, 0.8f), Color.black);
-        MakeBlockout(staffRoom.transform, "Bone_Pile", PrimitiveType.Sphere, new Vector3(28f, 0.3f, -7f), new Vector3(1.5f, 0.6f, 1.5f), Color.white);
-        MakeBlockout(staffRoom.transform, "Sacrifice_Altar", PrimitiveType.Cube, new Vector3(29f, 0.6f, -4f), new Vector3(3f, 1.2f, 1.5f), new Color(0.1f, 0.1f, 0.1f));
-        
-        // 💡 제단 위 양초 Y스케일 교정 (제단 위에 들뜨거나 묻히지 않게)
-        MakeBlockout(staffRoom.transform, "Altar_Candle_1", PrimitiveType.Cylinder, new Vector3(28f, 1.3f, -4f), new Vector3(0.1f, 0.1f, 0.1f), Color.white);
-        MakeBlockout(staffRoom.transform, "Altar_Candle_2", PrimitiveType.Cylinder, new Vector3(30f, 1.3f, -4f), new Vector3(0.1f, 0.1f, 0.1f), Color.white);
-        
-        MakeBlockout(staffRoom.transform, "Tapestry", PrimitiveType.Cube, new Vector3(33.9f, 1.5f, -4f), new Vector3(0.1f, 2f, 3f), Color.white);
-        AddLight(staffRoom.transform, new Vector3(29f, 2.4f, -4f), new Color(0.8f, 0.1f, 0.1f), 5f, 7f);
+        // 💡 5층 스태프룸 통합 함수 호출
+        BuildStandardStaffRoom(root.transform);
 
         Debug.Log("5F 복도 장식 및 조명 세팅 완료!");
     }
@@ -347,5 +300,28 @@ public static class CorridorDecorationBuilder
 
         MakeBlockout(matGroup.transform, $"{matName}_104", PrimitiveType.Cube, new Vector3(35.3f, 0.015f, 0.6f), new Vector3(1.2f, 0.02f, 0.8f), matColor);
         MakeBlockout(matGroup.transform, $"{matName}_105", PrimitiveType.Cube, new Vector3(5.1f, 0.015f, 0.6f), new Vector3(1.2f, 0.02f, 0.8f), matColor);
+    }
+
+    // 💡 모든 층이 공통으로 사용하는 스태프룸(세이프존) 생성 도우미 함수
+    static void BuildStandardStaffRoom(Transform parent)
+    {
+        GameObject staffRoom = new GameObject("Staff_Room_Decor");
+        staffRoom.transform.SetParent(parent, false); 
+        
+        for (int i = 0; i < 5; i++)
+        {
+            MakeBlockout(staffRoom.transform, $"Locker_{i}", PrimitiveType.Cube, new Vector3(25f + i * 0.8f, 1f, -7.5f), new Vector3(0.7f, 2f, 0.6f), new Color(0.25f, 0.25f, 0.25f));
+        }
+
+        MakeBlockout(staffRoom.transform, "Break_Table", PrimitiveType.Cube, new Vector3(29f, 0.4f, -4f), new Vector3(2.5f, 0.8f, 1.5f), new Color(0.3f, 0.2f, 0.15f));
+        MakeBlockout(staffRoom.transform, "Chair_1", PrimitiveType.Cylinder, new Vector3(28f, 0.25f, -3f), new Vector3(0.5f, 0.25f, 0.5f), Color.white);
+        MakeBlockout(staffRoom.transform, "Chair_2", PrimitiveType.Cylinder, new Vector3(30f, 0.25f, -3f), new Vector3(0.5f, 0.25f, 0.5f), Color.white);
+        MakeBlockout(staffRoom.transform, "Chair_3", PrimitiveType.Cylinder, new Vector3(29f, 0.25f, -5f), new Vector3(0.5f, 0.25f, 0.5f), Color.white);
+        MakeBlockout(staffRoom.transform, "Cot_Bed", PrimitiveType.Cube, new Vector3(32.5f, 0.3f, -2f), new Vector3(1f, 0.4f, 2.5f), new Color(0.2f, 0.3f, 0.2f));
+
+        MakeBlockout(staffRoom.transform, "Rulebook_Board", PrimitiveType.Cube, new Vector3(25f, 1.5f, -0.05f), new Vector3(2f, 1.2f, 0.1f), Color.white); 
+        MakeBlockout(staffRoom.transform, "Status_Board", PrimitiveType.Cube, new Vector3(27.5f, 1.5f, -0.05f), new Vector3(1.5f, 1f, 0.1f), Color.gray); 
+
+        AddLight(staffRoom.transform, new Vector3(29f, 2.4f, -4f), new Color(0.85f, 0.9f, 1f), 3.5f, 7f);
     }
 }
