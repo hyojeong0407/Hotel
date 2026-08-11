@@ -168,7 +168,7 @@ public static class HotelBlockoutBuilder
         // Procedural textures (no source images in the project) — plain noise shaped per material so
         // it reads as grain/weave/speckle rather than visible static.
         Texture2D woodTex = GenerateWoodTexture(new Color(0.22f, 0.11f, 0.06f));
-        Texture2D doorWoodTex = GenerateWoodTexture(new Color(0.55f, 0.33f, 0.13f));
+        Texture2D doorWoodTex = GenerateWoodTexture(new Color(0.25f, 0.14f, 0.07f));
         Texture2D velvetTex = GenerateFabricTexture(new Color(0.42f, 0.06f, 0.09f));
         Texture2D goldFabricTex = GenerateFabricTexture(new Color(0.5f, 0.42f, 0.28f));
         Texture2D ceramicTex = GenerateCeramicTexture(new Color(0.16f, 0.16f, 0.17f));
@@ -179,7 +179,7 @@ public static class HotelBlockoutBuilder
         // real-world material, not just per object, so everything reads as what it is, not flat grey.
         Material velvetRed = NewStandardMaterial(new Color(0.42f, 0.06f, 0.09f), 0.15f, 0f, velvetTex, new Vector2(4f, 4f));
         Material mahogany = NewStandardMaterial(new Color(0.22f, 0.11f, 0.06f), 0.3f, 0f, woodTex, new Vector2(2f, 3f));
-        Material doorWood = NewStandardMaterial(new Color(0.55f, 0.33f, 0.13f), 0.32f, 0f, doorWoodTex, new Vector2(2f, 3f)); // 황갈색 — lighter/warmer than the mahogany furniture
+        Material doorWood = NewStandardMaterial(new Color(0.25f, 0.14f, 0.07f), 0.32f, 0f, doorWoodTex, new Vector2(2f, 3f)); // 진한 갈색 — dark walnut, its own tone from the mahogany furniture
         Material brassMetal = NewStandardMaterial(new Color(0.55f, 0.42f, 0.15f), 0.6f, 0.75f, brassTex, new Vector2(3f, 1.5f));
         Material mutedGold = NewStandardMaterial(new Color(0.5f, 0.42f, 0.28f), 0.1f, 0f, goldFabricTex, new Vector2(4f, 4f));
         Material blackPlastic = NewStandardMaterial(new Color(0.03f, 0.03f, 0.03f), 0.6f, 0f);      // glossy plastic, stays smooth
@@ -590,7 +590,7 @@ public static class HotelBlockoutBuilder
         plaque.transform.SetParent(parent, false);
         plaque.transform.localPosition = new Vector3(centerX, 1.65f, exteriorZ);
 
-        MakeBox("Plaque_Plate", plaque.transform, new Vector3(0f, 0f, -0.008f), new Vector3(0.22f, 0.13f, 0.015f));
+        MakeBox("Plaque_Plate", plaque.transform, new Vector3(0f, 0f, -0.008f), new Vector3(0.34f, 0.22f, 0.015f));
 
         var textGO = new GameObject("Plaque_Number");
         textGO.transform.SetParent(plaque.transform, false);
