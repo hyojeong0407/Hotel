@@ -127,7 +127,6 @@ public static class HotelBlockoutBuilder
         var floors = FindAllFloorRoots();
         Selection.objects = floors;
         
-        // 💡 주석 대신 Unity Editor API를 호출하여 클래스 직접 참조 없이 스크립트를 실행합니다.
         EditorApplication.ExecuteMenuItem("Tools/Hotel Blockout/Apply Dark Materials (Eye Comfort)");
         
         ApplyLuxuryFurnitureColors(floors);
@@ -168,6 +167,7 @@ public static class HotelBlockoutBuilder
         Texture2D ceramicTex = GenerateCeramicTexture(new Color(0.16f, 0.16f, 0.17f));
         Texture2D brassTex = GenerateMetalTexture(new Color(0.55f, 0.42f, 0.15f));
         Texture2D vinylTex = GenerateFabricTexture(new Color(0.1f, 0.11f, 0.13f));
+        Texture2D marbleTex = GenerateMarbleTexture(new Color(0.08f, 0.08f, 0.09f)); // ★ 바닥용 고급 어두운 대리석 텍스처 생성
 
         Material velvetRed = NewStandardMaterial(new Color(0.42f, 0.06f, 0.09f), 0.15f, 0f, velvetTex, new Vector2(4f, 4f));
         Material mahogany = NewStandardMaterial(new Color(0.22f, 0.11f, 0.06f), 0.3f, 0f, woodTex, new Vector2(2f, 3f));
@@ -179,6 +179,7 @@ public static class HotelBlockoutBuilder
         Material ceramic = NewStandardMaterial(new Color(0.16f, 0.16f, 0.17f), 0.45f, 0f, ceramicTex, new Vector2(3f, 3f));
         Material windowGlass = NewStandardMaterial(new Color(0.5f, 0.62f, 0.58f), 0.85f, 0.1f);     
         Material vinylCurtain = NewStandardMaterial(new Color(0.1f, 0.11f, 0.13f), 0.35f, 0f, vinylTex, new Vector2(2f, 4f));
+        Material darkMarble = NewStandardMaterial(new Color(0.08f, 0.08f, 0.09f), 0.7f, 0.1f, marbleTex, new Vector2(8f, 8f)); // ★ 매끄러운 럭셔리 대리석 머티리얼
         Material fontMaterial = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf").material; 
 
         var redVelvet = new System.Collections.Generic.HashSet<string> { "seat", "backrest", "armrest_near", "armrest_far", "mattress", "blanket_fold" };
@@ -202,6 +203,7 @@ public static class HotelBlockoutBuilder
                     brass.Contains(n) ? brassMetal :
                     plastic.Contains(n) ? blackPlastic :
                     ceramicNames.Contains(n) ? ceramic :
+                    n == "floor" ? darkMarble : // ★ 바닥(Floor) 큐브에 어두운 럭셔리 대리석 자동 적용
                     n == "mirror" ? mirrorGlass :
                     n == "glass" ? windowGlass :
                     n.StartsWith("curtain_fold") ? vinylCurtain :
@@ -218,7 +220,27 @@ public static class HotelBlockoutBuilder
             }
         }
 
-        Debug.Log($"럭셔리 가구 배색 완료: {count}개 블록 (레드 벨벳/마호가니/브라스/도기/유리).");
+        Debug.Log($"럭셔리 가구 및 바닥 대리석 배색 완료: {count}개 블록 (레드 벨벳/마호가니/브라스/어두운 대리석/도기/유리).");
+    }
+
+    // ★ 고급 바닥용 어두운 대리석 마블 패턴 텍스처 생성기
+    static Texture2D GenerateMarbleTexture(Color baseColor)
+    {
+        const int size = 128;
+        var tex = new Texture2D(size, size, TextureFormat.RGB24, false);
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float vein = Mathf.PerlinNoise(x * 0.05f, y * 0.05f);
+                float detail = Mathf.PerlinNoise(x * 0.2f, y * 0.2f);
+                float shade = 0.82f + vein * 0.3f - detail * 0.1f;
+                tex.SetPixel(x, y, baseColor * shade);
+            }
+        }
+        tex.Apply();
+        tex.wrapMode = TextureWrapMode.Repeat;
+        return tex;
     }
 
     static Material NewStandardMaterial(Color color, float glossiness, float metallic, Texture2D texture = null, Vector2 tiling = default)
@@ -330,7 +352,6 @@ public static class HotelBlockoutBuilder
         float bay1West = ELWidth + RoomWidth;       
         float passageWest = bay1West + frontDeskWidth;
         float staffWest = passageWest + PassageWidth; 
-        // 💡 수정된 부분: 인접한 객실끼리 벽 두께(0.2m)가 서로의 방 안쪽으로 파고들지 않도록 간격 추가
         float bay2South = staffWest + staffRoomWidth + WallThickness;  
         float room1West = staffWest + RoomWidth + WallThickness;
          
@@ -526,7 +547,6 @@ public static class HotelBlockoutBuilder
         box.size = new Vector3(doorWidth + 1.6f, doorHeight, 1.6f);
         Undo.RegisterCreatedObjectUndo(trigger, "Build Hotel Blockout");
 
-        // 💡 주석이나 직접 참조 대신 Reflection을 사용하여 스크립트 컴파일 에러를 우회합니다.
         System.Type interactableType = System.Type.GetType("DoorInteractable, Assembly-CSharp") ?? System.Type.GetType("DoorInteractable");
         if (interactableType != null)
         {
@@ -686,7 +706,6 @@ public static class HotelBlockoutBuilder
             new Vector3(TvCenterX, TvShelfElevation + TvShelfHeight / 2f, TvCenterZ),
             new Vector3(TvThickness, TvShelfHeight, TvSpan));
         
-        // 💡 수정된 부분: TV 화면이 선반 앞이 아닌, 방의 실제 벽면(RoomWidth)에 오차 없이 완벽하게 밀착되도록 복구 및 교정
         MakeBox("TV_Screen", furniture.transform,
             new Vector3(RoomWidth - 0.03f, TvShelfElevation + 0.75f, TvCenterZ),
             new Vector3(0.06f, 0.9f, TvSpan * 0.75f));
