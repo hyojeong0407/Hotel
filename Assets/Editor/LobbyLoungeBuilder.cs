@@ -6,8 +6,13 @@ public static class LobbyLoungeBuilder
     [MenuItem("Tools/Hotel Blockout/Build Lobby Lounge (1F)")]
     public static void BuildLounge()
     {
+        // 1. 기존 라운지 오브젝트 삭제
         var existing = GameObject.Find("Horror_Lobby_Lounge");
         if (existing != null) Object.DestroyImmediate(existing);
+
+        // 기존 엘리베이터 디테일 오브젝트 삭제 (중복 생성 방지)
+        var existingEl = GameObject.Find("Horror_Elevator_Details");
+        if (existingEl != null) Object.DestroyImmediate(existingEl);
 
         GameObject loungeRoot = new GameObject("Horror_Lobby_Lounge");
         Undo.RegisterCreatedObjectUndo(loungeRoot, "Build Lobby Lounge");
@@ -26,7 +31,7 @@ public static class LobbyLoungeBuilder
         mainSofa.transform.SetParent(loungeRoot.transform);
         mainSofa.transform.localPosition = new Vector3(0f, 0.45f, 1.8f);
         mainSofa.transform.localScale = new Vector3(2.6f, 0.8f, 0.9f);
-        ApplyMaterial(mainSofa, "Mat_Lobby_Carpet"); // 무거운 붉은 가죽/패브릭 재질 활용
+        ApplyMaterial(mainSofa, "Mat_Lobby_Carpet"); 
 
         // 소파 등받이
         GameObject mainSofaBack = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -113,12 +118,85 @@ public static class LobbyLoungeBuilder
         pointLight.range = 6f;
         pointLight.shadows = LightShadows.Soft;
 
-        // 8. 105호 객실을 벗어나, 프론트 데스크 옆 통로(Passage) 중앙으로 이동
+        // 8. [NEW] 대형 실내 화분 (Plant) - 라운지 구석 장식
+        GameObject plantGroup = new GameObject("Potted_Plant");
+        plantGroup.transform.SetParent(loungeRoot.transform);
+        plantGroup.transform.localPosition = new Vector3(-2f, 0f, -1.5f);
+
+        GameObject pot = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        pot.name = "Plant_Pot";
+        pot.transform.SetParent(plantGroup.transform);
+        pot.transform.localPosition = new Vector3(0f, 0.25f, 0f);
+        pot.transform.localScale = new Vector3(0.5f, 0.25f, 0.5f);
+        ApplyMaterial(pot, "Mat_Lobby_Wood"); // 화분 기둥
+
+        GameObject leaves1 = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        leaves1.name = "Plant_Leaves_1";
+        leaves1.transform.SetParent(plantGroup.transform);
+        leaves1.transform.localPosition = new Vector3(0f, 0.8f, 0f);
+        leaves1.transform.localScale = new Vector3(0.8f, 0.9f, 0.8f);
+
+        GameObject leaves2 = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        leaves2.name = "Plant_Leaves_2";
+        leaves2.transform.SetParent(plantGroup.transform);
+        leaves2.transform.localPosition = new Vector3(0.2f, 0.6f, 0.2f);
+        leaves2.transform.localScale = new Vector3(0.6f, 0.6f, 0.6f);
+
+        // 9. 라운지 전체를 프론트 데스크 옆 통로 중앙으로 이동
         // X: 20.5 (PassageWidth 7m 구간의 중앙)
         loungeRoot.transform.position = new Vector3(20.5f, 0f, -4f);
 
+        // =========================================================
+        // 10. [NEW] 엘리베이터 디테일 (문틀, 버튼, 층수 표시기)
+        // 엘리베이터는 라운지와 위치가 다르므로 별도의 Root로 생성합니다.
+        // =========================================================
+        GameObject elevatorDetails = new GameObject("Horror_Elevator_Details");
+        Undo.RegisterCreatedObjectUndo(elevatorDetails, "Build Elevator Details");
+
+        float elZ = 2f; 
+        float doorWidth = 1.8f;
+        float doorHeight = 2.1f;
+
+        // 금속 문틀 (프레임)
+        GameObject frameTop = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        frameTop.name = "Frame_Top";
+        frameTop.transform.SetParent(elevatorDetails.transform);
+        frameTop.transform.position = new Vector3(0.35f, doorHeight + 0.05f, elZ);
+        frameTop.transform.localScale = new Vector3(0.1f, 0.1f, doorWidth + 0.2f);
+        ApplyMaterial(frameTop, "Mat_Lobby_Brass");
+
+        GameObject frameLeft = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        frameLeft.name = "Frame_Left";
+        frameLeft.transform.SetParent(elevatorDetails.transform);
+        frameLeft.transform.position = new Vector3(0.35f, doorHeight / 2f, elZ - (doorWidth / 2f) - 0.05f);
+        frameLeft.transform.localScale = new Vector3(0.1f, doorHeight, 0.1f);
+        ApplyMaterial(frameLeft, "Mat_Lobby_Brass");
+
+        GameObject frameRight = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        frameRight.name = "Frame_Right";
+        frameRight.transform.SetParent(elevatorDetails.transform);
+        frameRight.transform.position = new Vector3(0.35f, doorHeight / 2f, elZ + (doorWidth / 2f) + 0.05f);
+        frameRight.transform.localScale = new Vector3(0.1f, doorHeight, 0.1f);
+        ApplyMaterial(frameRight, "Mat_Lobby_Brass");
+
+        // 호출 버튼 (Call Button)
+        GameObject callButton = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        callButton.name = "Call_Button_Panel";
+        callButton.transform.SetParent(elevatorDetails.transform);
+        callButton.transform.position = new Vector3(0.32f, 1.1f, elZ - (doorWidth / 2f) - 0.25f);
+        callButton.transform.localScale = new Vector3(0.05f, 0.2f, 0.1f);
+        ApplyMaterial(callButton, "Mat_Lobby_Wood"); 
+
+        // 층수 표시기 (Indicator)
+        GameObject indicator = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        indicator.name = "Floor_Indicator";
+        indicator.transform.SetParent(elevatorDetails.transform);
+        indicator.transform.position = new Vector3(0.32f, doorHeight + 0.2f, elZ);
+        indicator.transform.localScale = new Vector3(0.05f, 0.15f, 0.4f);
+        ApplyMaterial(indicator, "Mat_Lobby_Wood");
+
         Selection.activeGameObject = loungeRoot;
-        Debug.Log("1층 로비 라운지(가구가 매테리얼과 함께 생성되었습니다!");
+        Debug.Log("1층 로비 라운지(가구/화분 추가됨) 및 엘리베이터 디테일 생성 완료!");
     }
 
     private static void ApplyMaterial(GameObject obj, string materialName)
