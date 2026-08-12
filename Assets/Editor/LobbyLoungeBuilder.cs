@@ -17,100 +17,102 @@ public static class LobbyLoungeBuilder
         GameObject loungeRoot = new GameObject("Horror_Lobby_Lounge");
         Undo.RegisterCreatedObjectUndo(loungeRoot, "Build Lobby Lounge");
 
-        // 1. 로비 중앙 대형 카펫
-        GameObject carpet = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        carpet.name = "Lobby_Carpet";
+        // 1. 로비 중앙 대형 카펫 (PBR Plane)
+        GameObject carpet = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        carpet.name = "Lobby_Carpet_PBR";
         carpet.transform.SetParent(loungeRoot.transform);
         carpet.transform.localPosition = new Vector3(0f, 0.01f, 0f);
-        carpet.transform.localScale = new Vector3(6f, 0.02f, 5f);
+        carpet.transform.localScale = new Vector3(0.6f, 1f, 0.5f);
         ApplyMaterial(carpet, "Mat_Lobby_Carpet");
 
         // 가구 크기 0.7로 통일
         Vector3 furnitureScale = new Vector3(0.7f, 0.7f, 0.7f);
 
-        // 2. 메인 가죽 소파 (Couch) - Couch 모델 기준에 맞춰 180도 회전!
+        // 2. 메인 가죽 소파 (Couch)
         SpawnFurniture("Couch", loungeRoot.transform, new Vector3(0f, 0f, 1.8f), Quaternion.Euler(0f, 180f, 0f), furnitureScale);
 
-        // 3. 1인용 가죽 암체어 (Fotel) - 중앙 테이블을 바라보도록 설정
+        // 3. 1인용 가죽 암체어 (Fotel)
         SpawnFurniture("Fotel", loungeRoot.transform, new Vector3(-1.8f, 0f, 0f), Quaternion.Euler(0f, -90f, 0f), furnitureScale);
         SpawnFurniture("Fotel", loungeRoot.transform, new Vector3(1.8f, 0f, 0f), Quaternion.Euler(0f, 90f, 0f), furnitureScale);
 
         // 4. 중앙 원형 커피 테이블 (RoundTable)
         SpawnFurniture("RoundTable", loungeRoot.transform, new Vector3(0f, 0f, 0f), Quaternion.Euler(0f, 180f, 0f), furnitureScale);
 
-        // 5. 괘종시계 (Grandfather Clock)
-        GameObject clockGroup = new GameObject("Grandfather_Clock");
-        clockGroup.transform.SetParent(loungeRoot.transform);
-        clockGroup.transform.localPosition = new Vector3(-2.5f, 0f, 2.1f);
+        // ==========================================
+        // 5. 괘종시계 (스케치팹 다운로드 모델 적용)
+        // ==========================================
+        string clockPath = "Assets/3rdParty/Clock/source/vintage_grandfather_clock.fbx";
+        GameObject clockPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(clockPath);
 
-        GameObject clockBody = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        clockBody.name = "Clock_Body";
-        clockBody.transform.SetParent(clockGroup.transform);
-        clockBody.transform.localPosition = new Vector3(0f, 1.2f, 0f);
-        clockBody.transform.localScale = new Vector3(0.7f, 2.4f, 0.5f);
-        ApplyMaterial(clockBody, "Mat_Lobby_Wood");
+        if (clockPrefab != null)
+        {
+            GameObject clockObj = PrefabUtility.InstantiatePrefab(clockPrefab, loungeRoot.transform) as GameObject;
+            clockObj.name = "Grandfather_Clock";
+            clockObj.transform.localPosition = new Vector3(-2.5f, 0f, 2.1f);
+            clockObj.transform.localRotation = Quaternion.Euler(-90f, 135f, 0f); 
+            
+            // ★ 수정된 부분: 시계 모델 특성에 맞춰 스케일을 80으로 뻥튀기!
+            clockObj.transform.localScale = new Vector3(80f, 80f, 80f); 
+            
+            Undo.RegisterCreatedObjectUndo(clockObj, "Spawn Grandfather Clock");
+        }
 
-        GameObject clockFace = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        clockFace.name = "Clock_Face";
-        clockFace.transform.SetParent(clockGroup.transform);
-        clockFace.transform.localPosition = new Vector3(0f, 1.9f, -0.26f);
-        clockFace.transform.localScale = new Vector3(0.4f, 0.02f, 0.4f);
-        clockFace.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-        ApplyMaterial(clockFace, "Mat_Lobby_Brass");
+        // ==========================================
+        // 6. 무드등 (스탠드 조명 + 은은한 포인트 라이트)
+        // ==========================================
+        // ※ 파일이 들어있는 실제 폴더 경로로 확인해 주세요!
+        string lampPath = "Assets/3rdParty/Lamp/source/LampTurn.blend"; 
+        GameObject lampPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(lampPath);
 
-        // 6. 스탠드 조명 (Floor Lamp)
-        GameObject lampGroup = new GameObject("Floor_Lamp");
-        lampGroup.transform.SetParent(loungeRoot.transform);
-        lampGroup.transform.localPosition = new Vector3(2.3f, 0f, 1.8f);
+        if (lampPrefab != null)
+        {
+            GameObject lampObj = PrefabUtility.InstantiatePrefab(lampPrefab, loungeRoot.transform) as GameObject;
+            lampObj.name = "Floor_Lamp";
+            
+            // 소파 옆이나 라운지 구석자리에 배치
+            lampObj.transform.localPosition = new Vector3(2.2f, 0f, 1.5f);
+            // 회전값을 0, 0, 0 대신 X축을 -90(또는 90)으로 꺾어줍니다.
+            lampObj.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            // 크기가 너무 크거나 작으면 이 부분을 0.5f, 0.01f 등으로 조절
+            lampObj.transform.localScale = new Vector3(0.2f, 0.2f, 0.2f);
 
-        GameObject lampPole = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        lampPole.name = "Pole";
-        lampPole.transform.SetParent(lampGroup.transform);
-        lampPole.transform.localPosition = new Vector3(0f, 0.9f, 0f);
-        lampPole.transform.localScale = new Vector3(0.06f, 0.9f, 0.06f);
-        ApplyMaterial(lampPole, "Mat_Lobby_Brass");
+            // ★ 무드등 갓 내부 전구 위치에 불빛(Point Light) 달아주기
+            GameObject lightObj = new GameObject("Lamp_Light");
+            lightObj.transform.SetParent(lampObj.transform);
+            lightObj.transform.localPosition = new Vector3(0f, 1.8f, 0f); // 전구 높이에 맞게 Y축 조절
 
-        GameObject lampShade = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        lampShade.name = "Shade";
-        lampShade.transform.SetParent(lampGroup.transform);
-        lampShade.transform.localPosition = new Vector3(0f, 1.7f, 0f);
-        lampShade.transform.localScale = new Vector3(0.6f, 0.25f, 0.6f);
-        ApplyMaterial(lampShade, "Mat_Lobby_Wall");
+            Light lampLight = lightObj.AddComponent<Light>();
+            lampLight.type = LightType.Point;
+            lampLight.color = new Color(1.0f, 0.7f, 0.4f); // 으스스하고 은은한 주황빛
+            lampLight.intensity = 2.0f;                     // 조명 밝기
+            lampLight.range = 5.0f;                         // 빛이 도달하는 범위
 
-        GameObject lightObj = new GameObject("Lamp_Light");
-        lightObj.transform.SetParent(lampShade.transform);
-        lightObj.transform.localPosition = new Vector3(0f, -0.2f, 0f);
+            Undo.RegisterCreatedObjectUndo(lampObj, "Spawn Floor Lamp");
+        }
 
-        Light pointLight = lightObj.AddComponent<Light>();
-        pointLight.type = LightType.Point;
-        pointLight.color = new Color(1f, 0.8f, 0.5f);
-        pointLight.intensity = 2.5f;
-        pointLight.range = 6f;
-        pointLight.shadows = LightShadows.Soft;
+        // ==========================================
+        // 7. 스산한 화분 (라운지 구석 배치)
+        // ==========================================
+        // ※ 본인이 다운받은 화분 파일 경로와 이름으로 수정해 주세요!
+        string plantPath = "Assets/3rdParty/Plant/source/potted_plant.fbx"; 
+        GameObject plantPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(plantPath);
 
-        // 7. 대형 실내 화분 (Plant)
-        GameObject plantGroup = new GameObject("Potted_Plant");
-        plantGroup.transform.SetParent(loungeRoot.transform);
-        plantGroup.transform.localPosition = new Vector3(-2f, 0f, -1.5f);
+        if (plantPrefab != null)
+        {
+            GameObject plantObj = PrefabUtility.InstantiatePrefab(plantPrefab, loungeRoot.transform) as GameObject;
+            plantObj.name = "Potted_Plant";
+            
+            // 무드등 반대쪽 구석이나 소파 옆에 배치 (원하는 위치로 수정 가능)
+            plantObj.transform.localPosition = new Vector3(-2.4f, 0f, -1.5f);
+            
+            // 잎의 방향이 자연스럽게 랜덤으로 돌아가게 설정
+            plantObj.transform.localRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+            
+            // 크기가 너무 크거나 작으면 이 부분을 0.5f, 0.01f 등으로 조절
+            plantObj.transform.localScale = new Vector3(2f, 2f, 2f); 
 
-        GameObject pot = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        pot.name = "Plant_Pot";
-        pot.transform.SetParent(plantGroup.transform);
-        pot.transform.localPosition = new Vector3(0f, 0.25f, 0f);
-        pot.transform.localScale = new Vector3(0.5f, 0.25f, 0.5f);
-        ApplyMaterial(pot, "Mat_Lobby_Wood");
-
-        GameObject leaves1 = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        leaves1.name = "Plant_Leaves_1";
-        leaves1.transform.SetParent(plantGroup.transform);
-        leaves1.transform.localPosition = new Vector3(0f, 0.8f, 0f);
-        leaves1.transform.localScale = new Vector3(0.8f, 0.9f, 0.8f);
-
-        GameObject leaves2 = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        leaves2.name = "Plant_Leaves_2";
-        leaves2.transform.SetParent(plantGroup.transform);
-        leaves2.transform.localPosition = new Vector3(0.2f, 0.6f, 0.2f);
-        leaves2.transform.localScale = new Vector3(0.6f, 0.6f, 0.6f);
+            Undo.RegisterCreatedObjectUndo(plantObj, "Spawn Potted Plant");
+        }
 
         // 8. 라운지 전체 위치 이동
         loungeRoot.transform.position = new Vector3(20.5f, 0f, -4f);
@@ -119,7 +121,7 @@ public static class LobbyLoungeBuilder
         BuildElevatorDetails();
 
         Selection.activeGameObject = loungeRoot;
-        Debug.Log("1층 로비 라운지 (Couch 회전 방향 수정) 생성 완료!");
+        Debug.Log("1층 로비 라운지 (스케치팹 괘종시계 추가) 생성 완료!");
     }
 
     private static GameObject SpawnFurniture(string prefabName, Transform parent, Vector3 localPos, Quaternion localRot, Vector3 scale)
