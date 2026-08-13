@@ -1288,7 +1288,7 @@ public static class HotelBlockoutBuilder
     const string BedFbxPath = "Assets/3rdParty/bed/source/model.fbx";
     const string BedTexDir = "Assets/3rdParty/bed/textures/";
     const string BedMatPath = "Assets/3rdParty/bed/Bed_Mat.mat";
-    const string BedFbxMaterialName = "Material_0.001";
+    const string BedFbxMaterialName = "Material_0";
 
     [MenuItem("Tools/Hotel Blockout/Wire Bed Textures")]
     public static void WireBedTexturesMenu() => WireBedTextures();
@@ -1302,9 +1302,9 @@ public static class HotelBlockoutBuilder
 
     static void WireBedTextures()
     {
-        string albedoPath = BedTexDir + "gltf_embedded_1.jpeg";
-        string roughnessPath = BedTexDir + "gltf_embedded_0@channels=G.jpeg";
-        string metallicPath = BedTexDir + "gltf_embedded_0@channels=B.jpeg";
+        string albedoPath = BedTexDir + "bed_basecolor.png";
+        string normalPath = BedTexDir + "bed_normal.png";
+        string combinedMrPath = BedTexDir + "bed_metallic_roughness.png";
 
         var albedoTex = AssetDatabase.LoadAssetAtPath<Texture2D>(albedoPath);
         if (albedoTex == null)
@@ -1313,10 +1313,19 @@ public static class HotelBlockoutBuilder
             return;
         }
 
-        var packed = GetOrCreatePackedTexture(metallicPath, roughnessPath, BedTexDir + "Bed_MetallicSmoothness.png");
+        SetTextureType(normalPath, TextureImporterType.NormalMap);
+        var normalTex = AssetDatabase.LoadAssetAtPath<Texture2D>(normalPath);
+
+        // glTF metallic-roughness convention: G = Roughness, B = Metallic (R unused here).
+        var packed = GetOrCreatePackedTextureFromCombinedMR(combinedMrPath, BedTexDir + "Bed_MetallicSmoothness.png");
 
         var mat = GetOrCreateCarpetMaterial(BedMatPath);
         mat.mainTexture = albedoTex;
+        if (normalTex != null)
+        {
+            mat.SetTexture("_BumpMap", normalTex);
+            mat.EnableKeyword("_NORMALMAP");
+        }
         if (packed != null)
         {
             mat.SetTexture("_MetallicGlossMap", packed);
@@ -1337,7 +1346,40 @@ public static class HotelBlockoutBuilder
         importer.AddRemap(id, mat);
         importer.SaveAndReimport();
 
-        Debug.Log($"침대 텍스처 연결 완료: Albedo={albedoTex.name}, Metallic/Smoothness 패킹 텍스처 적용, FBX 재질 리매핑 완료.");
+        Debug.Log($"침대 텍스처 연결 완료: Albedo={albedoTex.name}, Normal={(normalTex != null ? normalTex.name : "none")}, Metallic/Smoothness 패킹 완료, FBX 재질({BedFbxMaterialName}) 리매핑 완료.");
+    }
+
+    // Splits one combined metallic-roughness image (G=Roughness, B=Metallic, glTF
+    // convention) into the RGB(metallic)+Alpha(smoothness) layout Standard expects.
+    static Texture2D GetOrCreatePackedTextureFromCombinedMR(string combinedPath, string outputPath)
+    {
+        if (!System.IO.File.Exists(outputPath))
+        {
+            SetTextureReadable(combinedPath);
+            SetTextureLinear(combinedPath);
+            var srcTex = AssetDatabase.LoadAssetAtPath<Texture2D>(combinedPath);
+            if (srcTex == null)
+                return null;
+
+            int w = srcTex.width, h = srcTex.height;
+            var packed = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    Color c = srcTex.GetPixel(x, y);
+                    float roughness = c.g;
+                    float metallic = c.b;
+                    packed.SetPixel(x, y, new Color(metallic, metallic, metallic, 1f - roughness));
+                }
+            }
+            packed.Apply();
+            System.IO.File.WriteAllBytes(outputPath, packed.EncodeToPNG());
+            Object.DestroyImmediate(packed);
+            AssetDatabase.ImportAsset(outputPath, ImportAssetOptions.ForceUpdate);
+            SetTextureLinear(outputPath);
+        }
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(outputPath);
     }
 
     // Packs metallic (from metallicPath, R channel) and inverted roughness (from
@@ -1495,5 +1537,36 @@ public static class HotelBlockoutBuilder
         for (int i = 1; i < renderers.Length; i++)
             b.Encapsulate(renderers[i].bounds);
         return b;
+    }
+
+    // Removes the stray Light/Camera the bed FBX brought in (leftover from the Blender
+    // scene, not part of the actual bed). Fixing this at the model importer means every
+    // existing Bed_Model instance updates automatically — no per-room scene edits needed.
+    [MenuItem("Tools/Hotel Blockout/Remove Bed Light And Camera")]
+    public static void RemoveBedLightAndCameraMenu() => RemoveBedLightAndCamera();
+
+    // Headless entry point: `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.RemoveBedLightAndCameraAndSaveBatch`
+    public static void RemoveBedLightAndCameraAndSaveBatch()
+    {
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+        RemoveBedLightAndCamera();
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log("RemoveBedLightAndCameraAndSaveBatch 완료: SampleScene에 저장됨.");
+    }
+
+    static void RemoveBedLightAndCamera()
+    {
+        var importer = AssetImporter.GetAtPath(BedSourcePath) as ModelImporter;
+        if (importer == null)
+        {
+            Debug.LogError($"침대 FBX importer를 찾을 수 없습니다: {BedSourcePath}");
+            return;
+        }
+
+        importer.importCameras = false;
+        importer.importLights = false;
+        importer.SaveAndReimport();
+
+        Debug.Log("침대 모델에서 Light/Camera 임포트 비활성화 완료 (importCameras=false, importLights=false). 모든 방의 Bed_Model 인스턴스에 자동 반영됩니다.");
     }
 }

@@ -7,7 +7,7 @@ ModelImporter:
   - first:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
-      name: Material_0.001
+      name: Material_0
     second: {fileID: 2100000, guid: 2021c2dc8d2b8ba4ab32c50188077c59, type: 2}
   materials:
     materialImportMode: 2
@@ -47,8 +47,8 @@ ModelImporter:
     importPhysicalCameras: 1
     importVisibility: 1
     importBlendShapes: 1
-    importCameras: 1
-    importLights: 1
+    importCameras: 0
+    importLights: 0
     nodeNameCollisionStrategy: 1
     fileIdsGeneration: 2
     swapUVChannels: 0
