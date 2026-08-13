@@ -978,4 +978,139 @@ public static class HotelBlockoutBuilder
         Selection.activeGameObject = go;
         SceneView.lastActiveSceneView?.FrameSelected();
     }
+
+    // ===================================================================================
+    // Adds a TV + stand to every guest room's Furniture object, copying the exact placement
+    // Room_304 already uses (it was hand-placed in the Editor as the reference). Purely
+    // additive: only instantiates the two prefabs where they're missing, never clears or
+    // rebuilds anything else.
+    // ===================================================================================
+
+    const string TvSourcePath = "Assets/3rdParty/70-tv/source/TV/TV.blend";
+    const string TvStandSourcePath = "Assets/3rdParty/tv-stand-roma-by-turri/source/Moble tv roma turri.fbx";
+
+    static readonly Vector3 Room304TvStandLocalPos = new Vector3(9.725f, 0f, 5f);
+    static readonly Quaternion Room304TvStandLocalRot = Quaternion.identity;
+    static readonly Vector3 Room304TvLocalPos = new Vector3(9.825f, 0.4f, 5f);
+    static readonly Quaternion Room304TvLocalRot = new Quaternion(-0.5f, -0.5f, -0.5f, 0.5f);
+
+    [MenuItem("Tools/Hotel Blockout/Add TV+Stand To Rooms (From Room 304 Reference)")]
+    public static void AddTvAndStandFromRoom304ReferenceMenu() => AddTvAndStandFromRoom304Reference();
+
+    // Headless entry point: `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.AddTvAndStandFromRoom304ReferenceAndSaveBatch`
+    public static void AddTvAndStandFromRoom304ReferenceAndSaveBatch()
+    {
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+        AddTvAndStandFromRoom304Reference();
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log("AddTvAndStandFromRoom304ReferenceAndSaveBatch 완료: SampleScene에 저장됨.");
+    }
+
+    static void AddTvAndStandFromRoom304Reference()
+    {
+        var tvSource = AssetDatabase.LoadAssetAtPath<GameObject>(TvSourcePath);
+        var standSource = AssetDatabase.LoadAssetAtPath<GameObject>(TvStandSourcePath);
+        if (tvSource == null || standSource == null)
+        {
+            Debug.LogError($"TV 또는 스탠드 소스 파일을 찾을 수 없습니다. TV: {TvSourcePath} (찾음: {tvSource != null}), Stand: {TvStandSourcePath} (찾음: {standSource != null})");
+            return;
+        }
+
+        int added = 0, alreadyPresent = 0, roomNotFound = 0;
+
+        for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
+        {
+            for (int d = 1; d <= 5; d++)
+            {
+                string roomName = "Room_" + (floorNumber * 100 + d);
+                var roomGo = GameObject.Find(roomName);
+                if (roomGo == null)
+                {
+                    roomNotFound++;
+                    continue;
+                }
+
+                var furniture = roomGo.transform.Find("Furniture");
+                if (furniture == null)
+                {
+                    var furnitureGo = new GameObject("Furniture");
+                    furnitureGo.transform.SetParent(roomGo.transform, false);
+                    Undo.RegisterCreatedObjectUndo(furnitureGo, "Add TV+Stand From Room 304 Reference");
+                    furniture = furnitureGo.transform;
+                }
+
+                bool hasTv = furniture.Find("TV") != null;
+                bool hasStand = furniture.Find("Moble tv roma turri") != null;
+                if (hasTv && hasStand)
+                {
+                    alreadyPresent++;
+                    continue;
+                }
+
+                if (!hasStand)
+                {
+                    var standInstance = (GameObject)PrefabUtility.InstantiatePrefab(standSource, furniture);
+                    standInstance.name = "Moble tv roma turri";
+                    standInstance.transform.localPosition = Room304TvStandLocalPos;
+                    standInstance.transform.localRotation = Room304TvStandLocalRot;
+                    standInstance.transform.localScale = Vector3.one;
+                    Undo.RegisterCreatedObjectUndo(standInstance, "Add TV+Stand From Room 304 Reference");
+                }
+
+                if (!hasTv)
+                {
+                    var tvInstance = (GameObject)PrefabUtility.InstantiatePrefab(tvSource, furniture);
+                    tvInstance.name = "TV";
+                    tvInstance.transform.localPosition = Room304TvLocalPos;
+                    tvInstance.transform.localRotation = Room304TvLocalRot;
+                    tvInstance.transform.localScale = Vector3.one;
+                    Undo.RegisterCreatedObjectUndo(tvInstance, "Add TV+Stand From Room 304 Reference");
+                }
+
+                added++;
+            }
+        }
+
+        Debug.Log($"TV+스탠드 추가 완료: {added}개 방에 신규 추가, {alreadyPresent}개는 이미 있어서 건너뜀, {roomNotFound}개 방을 씬에서 못 찾음.");
+    }
+
+    // Removes only the old placeholder boxes (TV_Shelf, TV_Screen) left over from procedural
+    // generation, from every room's Furniture object. Touches nothing else.
+    [MenuItem("Tools/Hotel Blockout/Remove TV Placeholder Boxes")]
+    public static void RemoveTvPlaceholderBoxesMenu() => RemoveTvPlaceholderBoxes();
+
+    // Headless entry point: `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.RemoveTvPlaceholderBoxesAndSaveBatch`
+    public static void RemoveTvPlaceholderBoxesAndSaveBatch()
+    {
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+        RemoveTvPlaceholderBoxes();
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log("RemoveTvPlaceholderBoxesAndSaveBatch 완료: SampleScene에 저장됨.");
+    }
+
+    static void RemoveTvPlaceholderBoxes()
+    {
+        int removed = 0;
+
+        for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
+        {
+            for (int d = 1; d <= 5; d++)
+            {
+                string roomName = "Room_" + (floorNumber * 100 + d);
+                var roomGo = GameObject.Find(roomName);
+                if (roomGo == null) continue;
+
+                var furniture = roomGo.transform.Find("Furniture");
+                if (furniture == null) continue;
+
+                var shelf = furniture.Find("TV_Shelf");
+                if (shelf != null) { Undo.DestroyObjectImmediate(shelf.gameObject); removed++; }
+
+                var screen = furniture.Find("TV_Screen");
+                if (screen != null) { Undo.DestroyObjectImmediate(screen.gameObject); removed++; }
+            }
+        }
+
+        Debug.Log($"TV 플레이스홀더 박스 제거 완료: 총 {removed}개 오브젝트 삭제.");
+    }
 }
