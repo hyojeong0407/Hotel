@@ -1242,4 +1242,258 @@ public static class HotelBlockoutBuilder
         importer.sRGBTexture = false;
         importer.SaveAndReimport();
     }
+
+    // Removes only the "Floor" object from every guest room. Touches nothing else.
+    [MenuItem("Tools/Hotel Blockout/Remove Room Floors")]
+    public static void RemoveRoomFloorsMenu() => RemoveRoomFloors();
+
+    // Headless entry point: `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.RemoveRoomFloorsAndSaveBatch`
+    public static void RemoveRoomFloorsAndSaveBatch()
+    {
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+        RemoveRoomFloors();
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log("RemoveRoomFloorsAndSaveBatch 완료: SampleScene에 저장됨.");
+    }
+
+    static void RemoveRoomFloors()
+    {
+        int removed = 0, roomNotFound = 0, floorNotFound = 0;
+
+        for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
+        {
+            for (int d = 1; d <= 5; d++)
+            {
+                string roomName = "Room_" + (floorNumber * 100 + d);
+                var roomGo = GameObject.Find(roomName);
+                if (roomGo == null) { roomNotFound++; continue; }
+
+                var floor = roomGo.transform.Find("Floor");
+                if (floor == null) { floorNotFound++; continue; }
+
+                Undo.DestroyObjectImmediate(floor.gameObject);
+                removed++;
+            }
+        }
+
+        Debug.Log($"Floor 제거 완료: {removed}개 방에서 삭제, {roomNotFound}개 방을 씬에서 못 찾음, {floorNotFound}개 방에서 Floor를 못 찾음.");
+    }
+
+    // ===================================================================================
+    // Wires up the bed model's loose texture files (which the FBX doesn't reference
+    // internally — they never got auto-linked) to a persisted material, then remaps the
+    // FBX's internal material to point at it. Touches only the bed asset, nothing else.
+    // ===================================================================================
+
+    const string BedFbxPath = "Assets/3rdParty/bed/source/model.fbx";
+    const string BedTexDir = "Assets/3rdParty/bed/textures/";
+    const string BedMatPath = "Assets/3rdParty/bed/Bed_Mat.mat";
+    const string BedFbxMaterialName = "Material_0.001";
+
+    [MenuItem("Tools/Hotel Blockout/Wire Bed Textures")]
+    public static void WireBedTexturesMenu() => WireBedTextures();
+
+    // Headless entry point: `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.WireBedTexturesAndSaveBatch`
+    public static void WireBedTexturesAndSaveBatch()
+    {
+        WireBedTextures();
+        Debug.Log("WireBedTexturesAndSaveBatch 완료.");
+    }
+
+    static void WireBedTextures()
+    {
+        string albedoPath = BedTexDir + "gltf_embedded_1.jpeg";
+        string roughnessPath = BedTexDir + "gltf_embedded_0@channels=G.jpeg";
+        string metallicPath = BedTexDir + "gltf_embedded_0@channels=B.jpeg";
+
+        var albedoTex = AssetDatabase.LoadAssetAtPath<Texture2D>(albedoPath);
+        if (albedoTex == null)
+        {
+            Debug.LogError($"침대 Albedo 텍스처를 찾을 수 없습니다: {albedoPath}");
+            return;
+        }
+
+        var packed = GetOrCreatePackedTexture(metallicPath, roughnessPath, BedTexDir + "Bed_MetallicSmoothness.png");
+
+        var mat = GetOrCreateCarpetMaterial(BedMatPath);
+        mat.mainTexture = albedoTex;
+        if (packed != null)
+        {
+            mat.SetTexture("_MetallicGlossMap", packed);
+            mat.SetFloat("_Metallic", 1f);
+            mat.SetFloat("_GlossMapScale", 1f);
+            mat.EnableKeyword("_METALLICGLOSSMAP");
+        }
+        EditorUtility.SetDirty(mat);
+        AssetDatabase.SaveAssets();
+
+        var importer = AssetImporter.GetAtPath(BedFbxPath) as ModelImporter;
+        if (importer == null)
+        {
+            Debug.LogError($"침대 FBX importer를 찾을 수 없습니다: {BedFbxPath}");
+            return;
+        }
+        var id = new AssetImporter.SourceAssetIdentifier(typeof(Material), BedFbxMaterialName);
+        importer.AddRemap(id, mat);
+        importer.SaveAndReimport();
+
+        Debug.Log($"침대 텍스처 연결 완료: Albedo={albedoTex.name}, Metallic/Smoothness 패킹 텍스처 적용, FBX 재질 리매핑 완료.");
+    }
+
+    // Packs metallic (from metallicPath, R channel) and inverted roughness (from
+    // roughnessPath, alpha = smoothness) into one texture — the layout Standard's metallic
+    // workflow expects. metallicPath may be null (flat 0 metallic). Caches the result as a
+    // real asset so repeat runs don't redo the per-pixel work.
+    static Texture2D GetOrCreatePackedTexture(string metallicPath, string roughnessPath, string outputPath)
+    {
+        if (!System.IO.File.Exists(outputPath))
+        {
+            if (!string.IsNullOrEmpty(metallicPath))
+                SetTextureLinear(metallicPath);
+            SetTextureLinear(roughnessPath);
+
+            Texture2D metallicTex = string.IsNullOrEmpty(metallicPath) ? null : AssetDatabase.LoadAssetAtPath<Texture2D>(metallicPath);
+            var roughTex = AssetDatabase.LoadAssetAtPath<Texture2D>(roughnessPath);
+            if (roughTex == null)
+                return null;
+
+            SetTextureReadable(roughnessPath);
+            if (!string.IsNullOrEmpty(metallicPath)) SetTextureReadable(metallicPath);
+            metallicTex = string.IsNullOrEmpty(metallicPath) ? null : AssetDatabase.LoadAssetAtPath<Texture2D>(metallicPath);
+            roughTex = AssetDatabase.LoadAssetAtPath<Texture2D>(roughnessPath);
+
+            int w = roughTex.width, h = roughTex.height;
+            var packed = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    float u = x / (float)w, v = y / (float)h;
+                    float metallic = metallicTex != null ? metallicTex.GetPixelBilinear(u, v).r : 0f;
+                    float rough = roughTex.GetPixel(x, y).r;
+                    packed.SetPixel(x, y, new Color(metallic, metallic, metallic, 1f - rough));
+                }
+            }
+            packed.Apply();
+            System.IO.File.WriteAllBytes(outputPath, packed.EncodeToPNG());
+            Object.DestroyImmediate(packed);
+            AssetDatabase.ImportAsset(outputPath, ImportAssetOptions.ForceUpdate);
+            SetTextureLinear(outputPath);
+        }
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(outputPath);
+    }
+
+    static void SetTextureReadable(string path)
+    {
+        if (AssetImporter.GetAtPath(path) is not TextureImporter importer || importer.isReadable)
+            return;
+        importer.isReadable = true;
+        importer.SaveAndReimport();
+    }
+
+    // ===================================================================================
+    // Replaces every guest room's procedurally-built "Bed" object with the bed FBX model
+    // (Assets/3rdParty/bed), fixed at 1.5x scale, anchored to the same floor footprint the
+    // old procedural bed occupied. Only ever touches each room's "Bed" object.
+    // ===================================================================================
+
+    const string BedSourcePath = "Assets/3rdParty/bed/source/model.fbx";
+    const float BedModelScale = 1.5f;
+
+    [MenuItem("Tools/Hotel Blockout/Replace Beds With Model")]
+    public static void ReplaceBedsWithModelMenu() => ReplaceBedsWithModel();
+
+    // Headless entry point: `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.ReplaceBedsWithModelAndSaveBatch`
+    public static void ReplaceBedsWithModelAndSaveBatch()
+    {
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+        ReplaceBedsWithModel();
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log("ReplaceBedsWithModelAndSaveBatch 완료: SampleScene에 저장됨.");
+    }
+
+    static void ReplaceBedsWithModel()
+    {
+        var bedSource = AssetDatabase.LoadAssetAtPath<GameObject>(BedSourcePath);
+        if (bedSource == null)
+        {
+            Debug.LogError($"침대 모델을 찾을 수 없습니다: {BedSourcePath}");
+            return;
+        }
+
+        // Same footprint BuildBed() used to place the procedural bed at, so the new model
+        // lands in exactly the same spot every old bed occupied.
+        float bedX0 = 0f;
+        float bedZ0 = BathLength + BedClearance;
+        Vector3 targetFootprintCenter = new Vector3(bedX0 + BedWidth / 2f, 0f, bedZ0 + BedDepth / 2f);
+
+        int replaced = 0, roomNotFound = 0, bedNotFound = 0;
+
+        for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
+        {
+            for (int d = 1; d <= 5; d++)
+            {
+                string roomName = "Room_" + (floorNumber * 100 + d);
+                var roomGo = GameObject.Find(roomName);
+                if (roomGo == null) { roomNotFound++; continue; }
+
+                var oldBed = roomGo.transform.Find("Bed");
+                if (oldBed == null) { bedNotFound++; continue; }
+
+                Undo.DestroyObjectImmediate(oldBed.gameObject);
+
+                var bedWrapper = new GameObject("Bed");
+                bedWrapper.transform.SetParent(roomGo.transform, false);
+                Undo.RegisterCreatedObjectUndo(bedWrapper, "Replace Beds With Model");
+
+                PlaceBedInstance(bedSource, bedWrapper.transform, targetFootprintCenter);
+                replaced++;
+            }
+        }
+
+        Debug.Log($"침대 교체 완료: {replaced}개 방, {roomNotFound}개 방을 씬에서 못 찾음, {bedNotFound}개 방에서 기존 Bed를 못 찾음.");
+    }
+
+    static void PlaceBedInstance(GameObject bedSource, Transform parent, Vector3 targetFootprintCenter)
+    {
+        var instance = (GameObject)PrefabUtility.InstantiatePrefab(bedSource, parent);
+        instance.name = "Bed_Model";
+        instance.transform.localPosition = Vector3.zero;
+        instance.transform.localRotation = Quaternion.identity;
+        instance.transform.localScale = Vector3.one;
+
+        var rawBounds = ComputeWorldBounds(instance);
+        float sizeX = Mathf.Max(rawBounds.size.x, 0.001f);
+        float sizeZ = Mathf.Max(rawBounds.size.z, 0.001f);
+
+        // Best-effort orientation guess: line the model's longer horizontal axis (assumed
+        // head-to-foot) up with the room's X axis, matching the old procedural bed's layout.
+        // Can't visually preview the model here — check in the Editor and rotate 180 if the
+        // headboard ends up facing the wrong way.
+        bool needsRotation = sizeZ > sizeX;
+        instance.transform.localRotation = needsRotation ? Quaternion.Euler(0f, 90f, 0f) : Quaternion.identity;
+        instance.transform.localScale = Vector3.one * BedModelScale;
+
+        var bounds = ComputeWorldBounds(instance);
+        Vector3 localCenter = parent.InverseTransformPoint(bounds.center);
+        float localMinY = parent.InverseTransformPoint(new Vector3(bounds.center.x, bounds.min.y, bounds.center.z)).y;
+
+        instance.transform.localPosition = new Vector3(
+            targetFootprintCenter.x - localCenter.x,
+            targetFootprintCenter.y - localMinY,
+            targetFootprintCenter.z - localCenter.z);
+
+        Undo.RegisterCreatedObjectUndo(instance, "Replace Beds With Model");
+    }
+
+    static Bounds ComputeWorldBounds(GameObject go)
+    {
+        var renderers = go.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0)
+            return new Bounds(go.transform.position, Vector3.zero);
+        var b = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+            b.Encapsulate(renderers[i].bounds);
+        return b;
+    }
 }
