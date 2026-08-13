@@ -702,13 +702,163 @@ public static class HotelBlockoutBuilder
             new Vector3(SeatingCenterX, TableHeight - 0.025f, TableCenterZ),
             new Vector3(TableWidth, 0.05f, TableDepth));
 
-        MakeBox("TV_Shelf", furniture.transform,
-            new Vector3(TvCenterX, TvShelfElevation + TvShelfHeight / 2f, TvCenterZ),
-            new Vector3(TvThickness, TvShelfHeight, TvSpan));
-        
-        MakeBox("TV_Screen", furniture.transform,
-            new Vector3(RoomWidth - 0.03f, TvShelfElevation + 0.75f, TvCenterZ),
-            new Vector3(0.06f, 0.9f, TvSpan * 0.75f));
+        BuildTv(furniture.transform);
+    }
+
+    const string TvFbxPath = "Assets/3rdParty/70-tv/source/TV/TV.fbx";
+    const string TvTexDir = "Assets/3rdParty/70-tv/source/TV/textures/";
+    const string TvMaterialPath = "Assets/3rdParty/70-tv/TV_Mat.mat";
+    const string TvMetallicSmoothPath = "Assets/3rdParty/70-tv/TV_MetallicSmoothness.png";
+    static Material cachedTvMaterial;
+
+    // Real downloaded model if it's present in the project; otherwise the original box placeholder
+    // so a room never ends up with no TV at all.
+    static void BuildTv(Transform furnitureParent)
+    {
+        var prefabSource = AssetDatabase.LoadAssetAtPath<GameObject>(TvFbxPath);
+        if (prefabSource == null)
+        {
+            MakeBox("TV_Shelf", furnitureParent,
+                new Vector3(TvCenterX, TvShelfElevation + TvShelfHeight / 2f, TvCenterZ),
+                new Vector3(TvThickness, TvShelfHeight, TvSpan));
+            MakeBox("TV_Screen", furnitureParent,
+                new Vector3(TvCenterX + TvThickness / 2f + 0.03f, TvShelfElevation + 0.75f, TvCenterZ),
+                new Vector3(0.06f, 0.9f, TvSpan * 0.75f));
+            return;
+        }
+
+        var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefabSource, furnitureParent);
+        instance.name = "TV_Model";
+        instance.transform.localPosition = Vector3.zero;
+        // Guess: model's front (screen) faces -Y in its source app. If it ends up facing the wrong
+        // way once mounted, adjust this Y rotation — there was no way to preview it from here.
+        instance.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);
+        instance.transform.localScale = Vector3.one;
+
+        if (cachedTvMaterial == null)
+            cachedTvMaterial = PrepareTvMaterial();
+        if (cachedTvMaterial != null)
+            foreach (var r in instance.GetComponentsInChildren<Renderer>())
+                r.sharedMaterial = cachedTvMaterial;
+
+        // Auto-fit: scale so the model reads as a ~1m-wide flat screen regardless of the FBX's native
+        // scale, then re-anchor so its visual center (not its arbitrary source-app pivot) lands on the
+        // wall mount point.
+        var bounds = ComputeWorldBounds(instance);
+        float currentWidth = Mathf.Max(bounds.size.x, bounds.size.z, 0.001f);
+        instance.transform.localScale = Vector3.one * (1f / currentWidth);
+
+        bounds = ComputeWorldBounds(instance);
+        Vector3 localPivotOffset = furnitureParent.InverseTransformPoint(bounds.center);
+        Vector3 targetLocalCenter = new Vector3(TvCenterX - 0.06f, TvShelfElevation + 0.55f, TvCenterZ);
+        instance.transform.localPosition = targetLocalCenter - localPivotOffset;
+
+        Undo.RegisterCreatedObjectUndo(instance, "Build Hotel Blockout");
+    }
+
+    static Bounds ComputeWorldBounds(GameObject go)
+    {
+        var renderers = go.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0)
+            return new Bounds(go.transform.position, Vector3.zero);
+        var b = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+            b.Encapsulate(renderers[i].bounds);
+        return b;
+    }
+
+    // Builds (once per batch run) a Standard-shader material from the Sketchfab PBR texture set.
+    // Sketchfab ships a metallic-roughness set; Standard wants metallic-smoothness (RGB metallic,
+    // alpha smoothness in one texture), so this packs TV_Metallic + TV_Smoothness together and
+    // caches the result as a real asset instead of redoing it on every run.
+    static Material PrepareTvMaterial()
+    {
+        SetTextureType(TvTexDir + "TV_Normal.png", TextureImporterType.NormalMap);
+
+        if (!System.IO.File.Exists(TvMetallicSmoothPath))
+        {
+            SetTextureReadableLinear(TvTexDir + "TV_Metallic.png");
+            SetTextureReadableLinear(TvTexDir + "TV_Smoothness.png");
+
+            var metallicTex = AssetDatabase.LoadAssetAtPath<Texture2D>(TvTexDir + "TV_Metallic.png");
+            var smoothTex = AssetDatabase.LoadAssetAtPath<Texture2D>(TvTexDir + "TV_Smoothness.png");
+            if (metallicTex != null && smoothTex != null)
+            {
+                int w = metallicTex.width, h = metallicTex.height;
+                var packed = new Texture2D(w, h, TextureFormat.RGBA32, false);
+                for (int y = 0; y < h; y++)
+                {
+                    for (int x = 0; x < w; x++)
+                    {
+                        float u = x / (float)w, v = y / (float)h;
+                        float metallic = metallicTex.GetPixel(x, y).r;
+                        float smooth = smoothTex.GetPixelBilinear(u, v).r;
+                        packed.SetPixel(x, y, new Color(metallic, metallic, metallic, smooth));
+                    }
+                }
+                packed.Apply();
+                System.IO.File.WriteAllBytes(TvMetallicSmoothPath, packed.EncodeToPNG());
+                Object.DestroyImmediate(packed);
+                AssetDatabase.ImportAsset(TvMetallicSmoothPath, ImportAssetOptions.ForceUpdate);
+                SetTextureLinear(TvMetallicSmoothPath);
+            }
+        }
+
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(TvMaterialPath);
+        if (mat == null)
+        {
+            mat = new Material(Shader.Find("Standard"));
+            AssetDatabase.CreateAsset(mat, TvMaterialPath);
+        }
+
+        mat.SetTexture("_MainTex", AssetDatabase.LoadAssetAtPath<Texture2D>(TvTexDir + "TV_Albedo.png"));
+        mat.SetTexture("_OcclusionMap", AssetDatabase.LoadAssetAtPath<Texture2D>(TvTexDir + "TV_AO.png"));
+
+        var normalTex = AssetDatabase.LoadAssetAtPath<Texture2D>(TvTexDir + "TV_Normal.png");
+        if (normalTex != null)
+        {
+            mat.SetTexture("_BumpMap", normalTex);
+            mat.EnableKeyword("_NORMALMAP");
+        }
+
+        var metallicGloss = AssetDatabase.LoadAssetAtPath<Texture2D>(TvMetallicSmoothPath);
+        if (metallicGloss != null)
+        {
+            mat.SetTexture("_MetallicGlossMap", metallicGloss);
+            mat.SetFloat("_Metallic", 1f);
+            mat.SetFloat("_GlossMapScale", 1f);
+            mat.EnableKeyword("_METALLICGLOSSMAP");
+        }
+
+        EditorUtility.SetDirty(mat);
+        AssetDatabase.SaveAssets();
+        return mat;
+    }
+
+    static void SetTextureType(string path, TextureImporterType type)
+    {
+        if (AssetImporter.GetAtPath(path) is not TextureImporter importer || importer.textureType == type)
+            return;
+        importer.textureType = type;
+        importer.SaveAndReimport();
+    }
+
+    static void SetTextureReadableLinear(string path)
+    {
+        if (AssetImporter.GetAtPath(path) is not TextureImporter importer)
+            return;
+        bool changed = false;
+        if (!importer.isReadable) { importer.isReadable = true; changed = true; }
+        if (importer.sRGBTexture) { importer.sRGBTexture = false; changed = true; }
+        if (changed) importer.SaveAndReimport();
+    }
+
+    static void SetTextureLinear(string path)
+    {
+        if (AssetImporter.GetAtPath(path) is not TextureImporter importer || !importer.sRGBTexture)
+            return;
+        importer.sRGBTexture = false;
+        importer.SaveAndReimport();
     }
 
     static void BuildRoomLighting(Transform parent, float width, float length)
