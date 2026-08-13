@@ -705,11 +705,11 @@ public static class HotelBlockoutBuilder
         BuildTv(furniture.transform);
     }
 
-    const string TvFbxPath = "Assets/3rdParty/70-tv/source/TV/TV.fbx";
-    const string TvTexDir = "Assets/3rdParty/70-tv/source/TV/textures/";
-    const string TvMaterialPath = "Assets/3rdParty/70-tv/TV_Mat.mat";
-    const string TvMetallicSmoothPath = "Assets/3rdParty/70-tv/TV_MetallicSmoothness.png";
-    static Material cachedTvMaterial;
+    const string TvFbxPath = "Assets/3rdParty/tv-and-tv-stand/source/tv.fbx";
+    const string TvTexDir = "Assets/3rdParty/tv-and-tv-stand/textures/";
+    const string TvAssetDir = "Assets/3rdParty/tv-and-tv-stand/";
+    static Material cachedTvBodyMaterial;
+    static Material cachedTvWoodMaterial;
 
     // Real downloaded model if it's present in the project; otherwise the original box placeholder
     // so a room never ends up with no TV at all.
@@ -735,11 +735,21 @@ public static class HotelBlockoutBuilder
         instance.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);
         instance.transform.localScale = Vector3.one;
 
-        if (cachedTvMaterial == null)
-            cachedTvMaterial = PrepareTvMaterial();
-        if (cachedTvMaterial != null)
-            foreach (var r in instance.GetComponentsInChildren<Renderer>())
-                r.sharedMaterial = cachedTvMaterial;
+        if (cachedTvBodyMaterial == null || cachedTvWoodMaterial == null)
+            PrepareTvMaterials(out cachedTvBodyMaterial, out cachedTvWoodMaterial);
+
+        // The model has two material slots (TV body vs. wood stand) — the source material's own name
+        // (still intact on the renderer at this point) says which one each slot originally was.
+        foreach (var r in instance.GetComponentsInChildren<Renderer>())
+        {
+            var mats = r.sharedMaterials;
+            for (int i = 0; i < mats.Length; i++)
+            {
+                bool isWood = mats[i] != null && mats[i].name.ToLower().Contains("wood");
+                mats[i] = isWood ? cachedTvWoodMaterial : cachedTvBodyMaterial;
+            }
+            r.sharedMaterials = mats;
+        }
 
         // Auto-fit: scale so the model reads as a ~1m-wide flat screen regardless of the FBX's native
         // scale, then re-anchor so its visual center (not its arbitrary source-app pivot) lands on the
@@ -767,61 +777,51 @@ public static class HotelBlockoutBuilder
         return b;
     }
 
-    // Builds (once per batch run) a Standard-shader material from the Sketchfab PBR texture set.
-    // Sketchfab ships a metallic-roughness set; Standard wants metallic-smoothness (RGB metallic,
-    // alpha smoothness in one texture), so this packs TV_Metallic + TV_Smoothness together and
-    // caches the result as a real asset instead of redoing it on every run.
-    static Material PrepareTvMaterial()
+    // Two Standard-shader materials (once per batch run, cached as real assets): the TV body/screen
+    // (DOOOR_NOB_* textures — metallic-roughness, packed into Standard's metallic-smoothness) and the
+    // wood stand (Wood067_* textures — no metallic map since wood isn't metal, plus a parallax map
+    // from the displacement texture for cheap extra surface detail).
+    static void PrepareTvMaterials(out Material body, out Material wood)
     {
-        SetTextureType(TvTexDir + "TV_Normal.png", TextureImporterType.NormalMap);
+        SetTextureType(TvTexDir + "DOOOR_NOB_Normal.png", TextureImporterType.NormalMap);
+        SetTextureType(TvTexDir + "Wood067_1K-JPG_NormalGL.jpg", TextureImporterType.NormalMap);
 
-        if (!System.IO.File.Exists(TvMetallicSmoothPath))
+        var bodyPacked = GetOrCreatePackedTexture(
+            TvTexDir + "DOOOR_NOB_Metallic.png", TvTexDir + "DOOOR_NOB_Roughness.png",
+            TvAssetDir + "TvBody_MetallicSmoothness.png");
+        var woodPacked = GetOrCreatePackedTexture(
+            null, TvTexDir + "Wood067_1K-JPG_Roughness.jpg",
+            TvAssetDir + "TvStandWood_MetallicSmoothness.png");
+
+        body = GetOrCreateMaterial(TvAssetDir + "TvBody_Mat.mat");
+        body.SetTexture("_MainTex", AssetDatabase.LoadAssetAtPath<Texture2D>(TvTexDir + "DOOOR_NOB_Base_color.png"));
+        ApplyNormalAndMetallicGloss(body, TvTexDir + "DOOOR_NOB_Normal.png", bodyPacked);
+
+        wood = GetOrCreateMaterial(TvAssetDir + "TvStandWood_Mat.mat");
+        wood.SetTexture("_MainTex", AssetDatabase.LoadAssetAtPath<Texture2D>(TvTexDir + "Wood067_1K-JPG_Color.jpg"));
+        ApplyNormalAndMetallicGloss(wood, TvTexDir + "Wood067_1K-JPG_NormalGL.jpg", woodPacked);
+
+        var displacement = AssetDatabase.LoadAssetAtPath<Texture2D>(TvTexDir + "Wood067_1K-JPG_Displacement.jpg");
+        if (displacement != null)
         {
-            SetTextureReadableLinear(TvTexDir + "TV_Metallic.png");
-            SetTextureReadableLinear(TvTexDir + "TV_Smoothness.png");
-
-            var metallicTex = AssetDatabase.LoadAssetAtPath<Texture2D>(TvTexDir + "TV_Metallic.png");
-            var smoothTex = AssetDatabase.LoadAssetAtPath<Texture2D>(TvTexDir + "TV_Smoothness.png");
-            if (metallicTex != null && smoothTex != null)
-            {
-                int w = metallicTex.width, h = metallicTex.height;
-                var packed = new Texture2D(w, h, TextureFormat.RGBA32, false);
-                for (int y = 0; y < h; y++)
-                {
-                    for (int x = 0; x < w; x++)
-                    {
-                        float u = x / (float)w, v = y / (float)h;
-                        float metallic = metallicTex.GetPixel(x, y).r;
-                        float smooth = smoothTex.GetPixelBilinear(u, v).r;
-                        packed.SetPixel(x, y, new Color(metallic, metallic, metallic, smooth));
-                    }
-                }
-                packed.Apply();
-                System.IO.File.WriteAllBytes(TvMetallicSmoothPath, packed.EncodeToPNG());
-                Object.DestroyImmediate(packed);
-                AssetDatabase.ImportAsset(TvMetallicSmoothPath, ImportAssetOptions.ForceUpdate);
-                SetTextureLinear(TvMetallicSmoothPath);
-            }
+            wood.SetTexture("_ParallaxMap", displacement);
+            wood.SetFloat("_Parallax", 0.02f);
+            wood.EnableKeyword("_PARALLAXMAP");
         }
 
-        var mat = AssetDatabase.LoadAssetAtPath<Material>(TvMaterialPath);
-        if (mat == null)
-        {
-            mat = new Material(Shader.Find("Standard"));
-            AssetDatabase.CreateAsset(mat, TvMaterialPath);
-        }
+        EditorUtility.SetDirty(body);
+        EditorUtility.SetDirty(wood);
+        AssetDatabase.SaveAssets();
+    }
 
-        mat.SetTexture("_MainTex", AssetDatabase.LoadAssetAtPath<Texture2D>(TvTexDir + "TV_Albedo.png"));
-        mat.SetTexture("_OcclusionMap", AssetDatabase.LoadAssetAtPath<Texture2D>(TvTexDir + "TV_AO.png"));
-
-        var normalTex = AssetDatabase.LoadAssetAtPath<Texture2D>(TvTexDir + "TV_Normal.png");
+    static void ApplyNormalAndMetallicGloss(Material mat, string normalPath, Texture2D metallicGloss)
+    {
+        var normalTex = AssetDatabase.LoadAssetAtPath<Texture2D>(normalPath);
         if (normalTex != null)
         {
             mat.SetTexture("_BumpMap", normalTex);
             mat.EnableKeyword("_NORMALMAP");
         }
-
-        var metallicGloss = AssetDatabase.LoadAssetAtPath<Texture2D>(TvMetallicSmoothPath);
         if (metallicGloss != null)
         {
             mat.SetTexture("_MetallicGlossMap", metallicGloss);
@@ -829,10 +829,54 @@ public static class HotelBlockoutBuilder
             mat.SetFloat("_GlossMapScale", 1f);
             mat.EnableKeyword("_METALLICGLOSSMAP");
         }
+    }
 
-        EditorUtility.SetDirty(mat);
-        AssetDatabase.SaveAssets();
+    static Material GetOrCreateMaterial(string path)
+    {
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (mat == null)
+        {
+            mat = new Material(Shader.Find("Standard"));
+            AssetDatabase.CreateAsset(mat, path);
+        }
         return mat;
+    }
+
+    // Packs metallic (RGB, or flat 0 if there's no metallic map — e.g. wood) and inverted roughness
+    // (alpha = smoothness) into one texture, the layout Standard's metallic workflow expects. Caches
+    // the result as a real asset so repeat batch runs don't redo the per-pixel work.
+    static Texture2D GetOrCreatePackedTexture(string metallicPath, string roughnessPath, string outputPath)
+    {
+        if (!System.IO.File.Exists(outputPath))
+        {
+            if (!string.IsNullOrEmpty(metallicPath))
+                SetTextureReadableLinear(metallicPath);
+            SetTextureReadableLinear(roughnessPath);
+
+            Texture2D metallicTex = string.IsNullOrEmpty(metallicPath) ? null : AssetDatabase.LoadAssetAtPath<Texture2D>(metallicPath);
+            var roughTex = AssetDatabase.LoadAssetAtPath<Texture2D>(roughnessPath);
+            if (roughTex == null)
+                return null;
+
+            int w = roughTex.width, h = roughTex.height;
+            var packed = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    float u = x / (float)w, v = y / (float)h;
+                    float metallic = metallicTex != null ? metallicTex.GetPixelBilinear(u, v).r : 0f;
+                    float rough = roughTex.GetPixel(x, y).r;
+                    packed.SetPixel(x, y, new Color(metallic, metallic, metallic, 1f - rough));
+                }
+            }
+            packed.Apply();
+            System.IO.File.WriteAllBytes(outputPath, packed.EncodeToPNG());
+            Object.DestroyImmediate(packed);
+            AssetDatabase.ImportAsset(outputPath, ImportAssetOptions.ForceUpdate);
+            SetTextureLinear(outputPath);
+        }
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(outputPath);
     }
 
     static void SetTextureType(string path, TextureImporterType type)
