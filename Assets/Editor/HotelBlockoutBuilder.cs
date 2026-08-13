@@ -1113,4 +1113,133 @@ public static class HotelBlockoutBuilder
 
         Debug.Log($"TV 플레이스홀더 박스 제거 완료: 총 {removed}개 오브젝트 삭제.");
     }
+
+    // ===================================================================================
+    // Applies a carpet material (Assets/3rdParty/carpet) to every guest room's Floor object.
+    // Creates one shared, persisted Material asset and assigns it via sharedMaterial to each
+    // room's Floor — touches nothing else in the scene.
+    // ===================================================================================
+
+    const string CarpetDir = "Assets/3rdParty/carpet/";
+    const string CarpetMatPath = "Assets/3rdParty/carpet/Carpet_Floor_Mat.mat";
+    static readonly Vector2 CarpetTiling = new Vector2(10f, 8f);
+
+    [MenuItem("Tools/Hotel Blockout/Apply Carpet To Room Floors")]
+    public static void ApplyCarpetToRoomFloorsMenu() => ApplyCarpetToRoomFloors();
+
+    // Headless entry point: `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.ApplyCarpetToRoomFloorsAndSaveBatch`
+    public static void ApplyCarpetToRoomFloorsAndSaveBatch()
+    {
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+        ApplyCarpetToRoomFloors();
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log("ApplyCarpetToRoomFloorsAndSaveBatch 완료: SampleScene에 저장됨.");
+    }
+
+    static void ApplyCarpetToRoomFloors()
+    {
+        var carpetMat = PrepareCarpetMaterial();
+        if (carpetMat == null) return;
+
+        int applied = 0, roomNotFound = 0, floorNotFound = 0;
+
+        for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
+        {
+            for (int d = 1; d <= 5; d++)
+            {
+                string roomName = "Room_" + (floorNumber * 100 + d);
+                var roomGo = GameObject.Find(roomName);
+                if (roomGo == null) { roomNotFound++; continue; }
+
+                var floor = roomGo.transform.Find("Floor");
+                var renderer = floor != null ? floor.GetComponent<MeshRenderer>() : null;
+                if (renderer == null) { floorNotFound++; continue; }
+
+                Undo.RecordObject(renderer, "Apply Carpet To Room Floors");
+                renderer.sharedMaterial = carpetMat;
+                applied++;
+            }
+        }
+
+        Debug.Log($"카펫 적용 완료: {applied}개 방 바닥에 적용, {roomNotFound}개 방을 씬에서 못 찾음, {floorNotFound}개 방에서 Floor를 못 찾음.");
+    }
+
+    static Material PrepareCarpetMaterial()
+    {
+        string colorPath = CarpetDir + "fabric_0012_color_1k.jpg";
+        string normalPath = CarpetDir + "fabric_0012_normal_opengl_1k.png";
+        string aoPath = CarpetDir + "fabric_0012_ao_1k.jpg";
+        string heightPath = CarpetDir + "fabric_0012_height_1k.png";
+
+        var colorTex = AssetDatabase.LoadAssetAtPath<Texture2D>(colorPath);
+        if (colorTex == null)
+        {
+            Debug.LogError($"카펫 텍스처를 찾을 수 없습니다: {colorPath}");
+            return null;
+        }
+
+        SetTextureType(normalPath, TextureImporterType.NormalMap);
+        SetTextureLinear(aoPath);
+
+        var mat = GetOrCreateCarpetMaterial(CarpetMatPath);
+        mat.mainTexture = colorTex;
+        mat.mainTextureScale = CarpetTiling;
+        mat.SetFloat("_Metallic", 0f);
+        mat.SetFloat("_Glossiness", 0.08f);
+
+        var normalTex = AssetDatabase.LoadAssetAtPath<Texture2D>(normalPath);
+        if (normalTex != null)
+        {
+            mat.SetTexture("_BumpMap", normalTex);
+            mat.SetTextureScale("_BumpMap", CarpetTiling);
+            mat.EnableKeyword("_NORMALMAP");
+        }
+
+        var aoTex = AssetDatabase.LoadAssetAtPath<Texture2D>(aoPath);
+        if (aoTex != null)
+        {
+            mat.SetTexture("_OcclusionMap", aoTex);
+            mat.SetTextureScale("_OcclusionMap", CarpetTiling);
+        }
+
+        var heightTex = AssetDatabase.LoadAssetAtPath<Texture2D>(heightPath);
+        if (heightTex != null)
+        {
+            mat.SetTexture("_ParallaxMap", heightTex);
+            mat.SetTextureScale("_ParallaxMap", CarpetTiling);
+            mat.SetFloat("_Parallax", 0.02f);
+            mat.EnableKeyword("_PARALLAXMAP");
+        }
+
+        EditorUtility.SetDirty(mat);
+        AssetDatabase.SaveAssets();
+        return mat;
+    }
+
+    static Material GetOrCreateCarpetMaterial(string path)
+    {
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (mat == null)
+        {
+            mat = new Material(Shader.Find("Standard"));
+            AssetDatabase.CreateAsset(mat, path);
+        }
+        return mat;
+    }
+
+    static void SetTextureType(string path, TextureImporterType type)
+    {
+        if (AssetImporter.GetAtPath(path) is not TextureImporter importer || importer.textureType == type)
+            return;
+        importer.textureType = type;
+        importer.SaveAndReimport();
+    }
+
+    static void SetTextureLinear(string path)
+    {
+        if (AssetImporter.GetAtPath(path) is not TextureImporter importer || !importer.sRGBTexture)
+            return;
+        importer.sRGBTexture = false;
+        importer.SaveAndReimport();
+    }
 }
