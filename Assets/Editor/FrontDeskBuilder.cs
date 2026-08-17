@@ -12,137 +12,124 @@ public static class FrontDeskBuilder
         GameObject deskRoot = new GameObject("Horror_Front_Desk");
         Undo.RegisterCreatedObjectUndo(deskRoot, "Build Front Desk");
 
-        // 1. 프론트 데스크 카운터
-        GameObject counter = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        counter.name = "Reception_Counter";
-        counter.transform.SetParent(deskRoot.transform);
-        counter.transform.localPosition = new Vector3(0f, 0.55f, 0f);
-        counter.transform.localScale = new Vector3(1f, 1.1f, 4f);
-        ApplyMaterial(counter, "Mat_Lobby_Wood");
+        // 1. 프론트 데스크 카운터 (Reception Counter)
+        SpawnModel(deskRoot.transform, "Reception_Counter_Model", 
+            "Assets/3rdParty/reception-desk/source/Mesa007TWINE-N64(Remake).fbx", 
+            new Vector3(1.5f, 0f, -1.5f), 
+            new Vector3(10f, 10f, 10f), 
+            Quaternion.Euler(-90f, 90f, 0f));
 
-        // 2-1. 방명록
-        GameObject book = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        book.name = "Guestbook";
-        book.transform.SetParent(deskRoot.transform);
-        book.transform.localPosition = new Vector3(0f, 1.12f, 1f);
-        book.transform.localScale = new Vector3(0.4f, 0.05f, 0.3f);
-        book.transform.localRotation = Quaternion.Euler(0f, 75f, 0f);
-        ApplyMaterial(book, "Mat_Lobby_Wall"); // 아이보리 계열 매테리얼 적용
+        // 2-1. 방명록 (Guestbook)
+        SpawnModel(deskRoot.transform, "Guestbook_Model", 
+            "Assets/3rdParty/old-book/source/book1.fbx", 
+            new Vector3(0.95f, 0.75f, 1f), 
+            new Vector3(1.2f, 1.2f, 1.2f), 
+            Quaternion.Euler(-90f, -115f, 0f));
 
         // 2-2. 대형 호텔 종 (Bell)
-        GameObject bellRoot = new GameObject("Reception_Bell");
-        bellRoot.transform.SetParent(deskRoot.transform);
-        bellRoot.transform.localPosition = new Vector3(0.1f, 1.1f, 0f);
+        SpawnModel(deskRoot.transform, "Reception_Bell_Model", 
+            "Assets/3rdParty/reception-bell/source/Reception_Bell.blend", 
+            new Vector3(1.235f, 0.72f, 0f), 
+            new Vector3(10f, 10f, 10f), 
+            Quaternion.Euler(0f, 0f, 0f));
 
-        GameObject bellBase = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        bellBase.name = "Bell_Base";
-        bellBase.transform.SetParent(bellRoot.transform);
-        bellBase.transform.localPosition = new Vector3(0f, 0.02f, 0f);
-        bellBase.transform.localScale = new Vector3(0.3f, 0.02f, 0.3f);
-        ApplyMaterial(bellBase, "Mat_Lobby_Brass");
-
-        GameObject bellDome = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        bellDome.name = "Bell_Dome";
-        bellDome.transform.SetParent(bellRoot.transform);
-        bellDome.transform.localPosition = new Vector3(0f, 0.08f, 0f);
-        bellDome.transform.localScale = new Vector3(0.25f, 0.15f, 0.25f);
-        ApplyMaterial(bellDome, "Mat_Lobby_Brass");
-
-        GameObject bellButton = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        bellButton.name = "Bell_Button";
-        bellButton.transform.SetParent(bellRoot.transform);
-        bellButton.transform.localPosition = new Vector3(0f, 0.18f, 0f);
-        bellButton.transform.localScale = new Vector3(0.04f, 0.04f, 0.04f);
-        ApplyMaterial(bellButton, "Mat_Lobby_Wood"); // 단추는 어두운 색 적용
-
-        BoxCollider bellCollider = bellRoot.AddComponent<BoxCollider>();
-        bellCollider.center = new Vector3(0f, 0.09f, 0f);
-        bellCollider.size = new Vector3(0.3f, 0.2f, 0.3f);
-
-        // 3. 디테일을 살린 실제 탁상조명 (Desk Lamp)
-        GameObject lampRoot = new GameObject("Desk_Lamp");
-        lampRoot.transform.SetParent(deskRoot.transform);
-        lampRoot.transform.localPosition = new Vector3(0.2f, 1.1f, -1.2f); 
-
-        GameObject lampBase = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        lampBase.name = "Lamp_Base";
-        lampBase.transform.SetParent(lampRoot.transform);
-        lampBase.transform.localPosition = new Vector3(0f, 0.02f, 0f);
-        lampBase.transform.localScale = new Vector3(0.2f, 0.02f, 0.2f);
-        ApplyMaterial(lampBase, "Mat_Lobby_Brass");
-
-        GameObject lampStem = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        lampStem.name = "Lamp_Stem";
-        lampStem.transform.SetParent(lampRoot.transform);
-        lampStem.transform.localPosition = new Vector3(0f, 0.15f, 0f);
-        lampStem.transform.localScale = new Vector3(0.02f, 0.15f, 0.02f);
-        ApplyMaterial(lampStem, "Mat_Lobby_Brass");
-
-        GameObject lampShade = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        lampShade.name = "Lamp_Shade";
-        lampShade.transform.SetParent(lampRoot.transform);
-        lampShade.transform.localPosition = new Vector3(0f, 0.3f, 0.05f);
-        lampShade.transform.localScale = new Vector3(0.15f, 0.1f, 0.15f);
-        lampShade.transform.localRotation = Quaternion.Euler(30f, 0f, 0f); 
-        ApplyMaterial(lampShade, "Mat_Lobby_Brass");
-
-        GameObject lightObj = new GameObject("Light_Source");
-        lightObj.transform.SetParent(lampShade.transform);
-        lightObj.transform.localPosition = Vector3.zero;
-        lightObj.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-
-        Light spotLight = lightObj.AddComponent<Light>();
-        spotLight.type = LightType.Spot;
-        spotLight.color = new Color(0.9f, 0.7f, 0.3f); 
-        spotLight.intensity = 4f; 
-        spotLight.range = 5f;
-        spotLight.spotAngle = 75f; 
-        spotLight.shadows = LightShadows.Soft; 
-
-        // 4. 뒤쪽 벽면의 열쇠 보관함
-        GameObject keyRack = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        keyRack.name = "Key_Cabinet";
-        keyRack.transform.SetParent(deskRoot.transform);
-        keyRack.transform.localPosition = new Vector3(-1.3f, 1.6f, 0f);
-        keyRack.transform.localScale = new Vector3(0.1f, 1.2f, 3f);
-        ApplyMaterial(keyRack, "Mat_Lobby_Wood");
-
-        // 5. 열쇠 보관함에 낡은 방 열쇠(Keys) 3개 매달기
-        for (int i = 0; i < 3; i++)
+        // 3. 탁상조명 (Desk Lamp)
+        GameObject lampObj = SpawnModel(deskRoot.transform, "Desk_Lamp_Model", 
+            "Assets/3rdParty/Vintage_table_lamp/prefab/Desk_lamp.prefab", 
+            new Vector3(0.2f, 0.7f, -1.2f), 
+            new Vector3(1f, 1f, 1f), 
+            Quaternion.Euler(0f, 0f, 0f));
+            
+        if (lampObj != null)
         {
-            GameObject key = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            key.name = "Room_Key_" + i;
-            key.transform.SetParent(keyRack.transform);
-            key.transform.localPosition = new Vector3(0.6f, 0.2f - (i * 0.2f), -0.3f + (i * 0.25f));
-            key.transform.localScale = new Vector3(0.5f, 0.1f, 0.05f);
-            key.transform.localRotation = Quaternion.Euler(0f, 0f, Random.Range(-10f, 10f));
-            ApplyMaterial(key, "Mat_Lobby_Brass");
+            GameObject lightObj = new GameObject("Light_Source");
+            lightObj.transform.SetParent(lampObj.transform);
+            lightObj.transform.localPosition = new Vector3(0f, 0.3f, 0.05f); 
+            lightObj.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+
+            Light spotLight = lightObj.AddComponent<Light>();
+            spotLight.type = LightType.Spot;
+            spotLight.color = new Color(0.9f, 0.7f, 0.3f); 
+            spotLight.intensity = 4f; 
+            spotLight.range = 5f;
+            spotLight.spotAngle = 75f; 
+            spotLight.shadows = LightShadows.Soft; 
         }
 
-        // 6. 정확한 위치 지정
+        // 4. 열쇠 보관함 (Key Cabinet)
+        SpawnModel(deskRoot.transform, "Key_Cabinet_Model", 
+            "Assets/3rdParty/bookcase/source/SM_Bookcase_embedded.fbx", 
+            new Vector3(-1.2f, 0f, -0.65f), 
+            new Vector3(70f, 70f, 80f), 
+            Quaternion.Euler(-90f, 90f, 0f));
+
+        // 5. 키 캐비넷 내부에 눕혀서 배치 (4단 선반 x 5개)
+        for (int i = 0; i < 20; i++)
+        {
+            int shelf = i / 5; // 0 ~ 3층
+            int col = i % 5;   // 0 ~ 4열
+
+            // ★ X축 (깊이): 실측값 기준 고정 (-0.95f)
+            float posX = -0.95f; 
+
+            // ★ Y축 (높이): 실측 기준 0.9부터 0.32씩 위로
+            float startY = 0.9f;       
+            float shelfSpacingY = 0.32f; 
+            float posY = startY + (shelf * shelfSpacingY);
+
+            // ★ Z축 (가로 너비): -0.3에서 시작해 오른쪽으로 0.18씩 간격 이동!
+            float startZ = -0.3f;     
+            float keySpacingZ = 0.18f; 
+            float posZ = startZ + (col * keySpacingZ);
+
+            // 회전값 고정
+            Quaternion keyRot = Quaternion.Euler(-90f, 90f, 0f);
+
+            SpawnModel(deskRoot.transform, "Room_Key_" + (i + 1), 
+                "Assets/3rdParty/Gabies_Assets/Keys/Prefabs/Simple_02.prefab", 
+                new Vector3(posX, posY, posZ), 
+                Vector3.one, 
+                keyRot);
+        }
+
+        // 6. 프론트 데스크 그룹 전체 위치
         deskRoot.transform.position = new Vector3(15.5f, 0f, -4f);
 
         Selection.activeGameObject = deskRoot;
-        Debug.Log("매테리얼이 입혀진 1층 프론트 데스크 세팅 완료!");
+        Debug.Log("Z축 기준 진짜 가로 정렬 완료!");
     }
 
-    // --- Assets/Art/Models/Materials 폴더에서 매테리얼을 불러와 적용하는 헬퍼 함수 ---
-    private static void ApplyMaterial(GameObject obj, string materialName)
+    // ====================================================================
+    // --- 3D 모델 소환 헬퍼 함수 ---
+    // ====================================================================
+    private static GameObject SpawnModel(Transform parent, string name, string path, Vector3 localPos, Vector3 localScale, Quaternion localRot)
     {
-        string path = $"Assets/Art/Models/Materials/{materialName}.mat";
-        Material mat = AssetDatabase.LoadAssetAtPath<Material>(path);
-
-        if (mat != null)
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        
+        if (prefab != null)
         {
-            Renderer renderer = obj.GetComponent<Renderer>();
-            if (renderer != null)
-            {
-                renderer.sharedMaterial = mat;
-            }
+            GameObject obj = PrefabUtility.InstantiatePrefab(prefab, parent) as GameObject;
+            obj.name = name;
+            obj.transform.localPosition = localPos;
+            obj.transform.localRotation = localRot;
+            obj.transform.localScale = localScale; 
+            return obj;
         }
         else
         {
-            Debug.LogWarning($"[FrontDeskBuilder] 매테리얼을 찾을 수 없습니다: {path}");
+            GameObject temp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            temp.name = name + "_MISSING_MODEL";
+            temp.transform.SetParent(parent);
+            temp.transform.localPosition = localPos;
+            temp.transform.localRotation = localRot;
+            temp.transform.localScale = localScale; 
+            
+            Renderer renderer = temp.GetComponent<Renderer>();
+            if (renderer != null && renderer.sharedMaterial != null)
+            {
+                renderer.sharedMaterial.color = new Color(0.35f, 0.25f, 0.2f);
+            }
+            return temp;
         }
     }
 }
