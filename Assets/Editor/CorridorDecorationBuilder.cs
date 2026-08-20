@@ -301,26 +301,50 @@ public static class CorridorDecorationBuilder
         l.shadows = LightShadows.Soft;
     }
 
+    // 파일 상단 변수 선언부에 에셋 경로 설정 (실제 에셋 위치에 맞춰 변경하세요)
+    // 1단계에서 완성한 프리팹 경로 지정
+    private const string SconcePrefabPath = "Assets/3rdParty/Sconce/Prefabs/PF_BrassWallLamp.prefab";
     static void AddWallSconce(Transform parent, string name, Vector3 pos, float yRotation, Color lightColor)
     {
-        GameObject sconce = new GameObject(name);
-        sconce.transform.SetParent(parent, false);
-        sconce.transform.localPosition = pos;
-        
-        sconce.transform.localRotation = Quaternion.Euler(0, yRotation, 0);
+        GameObject sconceObj = null;
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(SconcePrefabPath);
 
-        MakeBlockout(sconce.transform, "Base", PrimitiveType.Cube, Vector3.zero, new Vector3(0.2f, 0.4f, 0.1f), Color.black);
-        MakeBlockout(sconce.transform, "Bulb", PrimitiveType.Sphere, new Vector3(0, 0.1f, -0.1f), new Vector3(0.2f, 0.2f, 0.2f), lightColor);
+        if (prefab != null)
+        {
+            // 1. 프리팹 생성 및 위치/회전 적용 (3D 모델 원본 재질 유지)
+            sconceObj = PrefabUtility.InstantiatePrefab(prefab, parent) as GameObject;
+            sconceObj.name = name;
+            sconceObj.transform.localPosition = pos;
+            sconceObj.transform.localRotation = Quaternion.Euler(0f, yRotation, 0f);
+        }
+        else
+        {
+            // Fallback (3D 에셋 없을 경우 기본 도형 생성)
+            sconceObj = new GameObject(name);
+            sconceObj.transform.SetParent(parent, false);
+            sconceObj.transform.localPosition = pos;
+            sconceObj.transform.localRotation = Quaternion.Euler(0, yRotation, 0);
 
-        GameObject lightObj = new GameObject("Light");
-        lightObj.transform.SetParent(sconce.transform, false);
-        lightObj.transform.localPosition = new Vector3(0, 0.1f, -0.2f);
-        
-        Light l = lightObj.AddComponent<Light>();
+            MakeBlockout(sconceObj.transform, "Base", PrimitiveType.Cube, Vector3.zero, new Vector3(0.2f, 0.4f, 0.1f), Color.black);
+            MakeBlockout(sconceObj.transform, "Bulb", PrimitiveType.Sphere, new Vector3(0, 0.1f, -0.1f), new Vector3(0.2f, 0.2f, 0.2f), lightColor);
+        }
+
+        // 2. 층별 조명 빛 색상(Point Light)만 변경
+        Light l = sconceObj.GetComponentInChildren<Light>();
+        if (l == null)
+        {
+            GameObject lightObj = new GameObject("Sconce_Light_Source");
+            lightObj.transform.SetParent(sconceObj.transform, false);
+            
+            // 전구 높이에 맞는 광원 위치 지정
+            lightObj.transform.localPosition = new Vector3(0f, 0.25f, -0.4f);
+            l = lightObj.AddComponent<Light>();
+        }
+
         l.type = LightType.Point;
-        l.color = lightColor;
-        l.intensity = 2f;
-        l.range = 4f;
+        l.color = lightColor; // 1F/2F/3F/5F 각각의 테마 색상 적용
+        l.intensity = 2.5f;
+        l.range = 5f;
         l.shadows = LightShadows.Soft;
     }
 
