@@ -12,7 +12,7 @@ public static class CorridorDecorationBuilder
     const float ElLobbyCenter_X = 2.2f;
     const float ElLobbyCenter_Z = 2f;
 
-    [MenuItem("Tools/Hotel Blockout/Decorate Corridor - 1F (Lobby & Staff)")]
+    [MenuItem("Tools/Hotel Blockout/Decorate Corridor - 1F (Lobby and Staff)")]
     public static void DecorateFloor1()
     {
         int floorNum = 1;
@@ -361,26 +361,118 @@ public static class CorridorDecorationBuilder
         MakeBlockout(matGroup.transform, $"{matName}_105", PrimitiveType.Cube, new Vector3(5.1f, 0.015f, 0.6f), new Vector3(1.2f, 0.02f, 0.8f), matColor);
     }
 
-    // 💡 모든 층이 공통으로 사용하는 스태프룸(세이프존) 생성 도우미 함수
+    // 상단 변수 선언부에 에셋 경로 지정
+    private const string LockerPrefabPath = "Assets/3rdParty/metal-cabinet/source/locker.fbx";
+    private const string BreakTablePrefabPath = "Assets/3rdParty/Break_table/source/Carver_Coffee_Table.fbx";
+    private const string ChairPrefabPath = "Assets/3rdParty/vintage-wooden-chair/source/Chair.obj";
+    private const string CotBedPrefabPath = "Assets/3rdParty/fbx/ASSET.fbx";
+    private const string BoardPrefabPath = "Assets/3rdParty/Board/source/CorkBulletin.fbx";
+
     static void BuildStandardStaffRoom(Transform parent)
     {
         GameObject staffRoom = new GameObject("Staff_Room_Decor");
         staffRoom.transform.SetParent(parent, false); 
         
-        for (int i = 0; i < 5; i++)
+        // 1. 락커 (3D Model)
+        GameObject lockerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(LockerPrefabPath);
+        for (int i = 0; i < 4; i++)
         {
-            MakeBlockout(staffRoom.transform, $"Locker_{i}", PrimitiveType.Cube, new Vector3(25f + i * 0.8f, 1f, -7.5f), new Vector3(0.7f, 2f, 0.6f), new Color(0.25f, 0.25f, 0.25f));
+            Vector3 lockerPos = new Vector3(25f + i * 0.8f, 0f, -7.5f); 
+            if (lockerPrefab != null)
+            {
+                GameObject locker = PrefabUtility.InstantiatePrefab(lockerPrefab, staffRoom.transform) as GameObject;
+                locker.name = $"Locker_{i}";
+                locker.transform.localPosition = lockerPos;
+                locker.transform.localRotation = Quaternion.Euler(0f, 0f, 0f); 
+                locker.transform.localScale = Vector3.one; 
+            }
+            else
+            {
+                MakeBlockout(staffRoom.transform, $"Locker_{i}", PrimitiveType.Cube, new Vector3(25f + i * 0.8f, 1f, -7.5f), new Vector3(0.7f, 2f, 0.6f), new Color(0.25f, 0.25f, 0.25f));
+            }
         }
 
-        MakeBlockout(staffRoom.transform, "Break_Table", PrimitiveType.Cube, new Vector3(29f, 0.4f, -4f), new Vector3(2.5f, 0.8f, 1.5f), new Color(0.3f, 0.2f, 0.15f));
-        MakeBlockout(staffRoom.transform, "Chair_1", PrimitiveType.Cylinder, new Vector3(28f, 0.25f, -3f), new Vector3(0.5f, 0.25f, 0.5f), Color.white);
-        MakeBlockout(staffRoom.transform, "Chair_2", PrimitiveType.Cylinder, new Vector3(30f, 0.25f, -3f), new Vector3(0.5f, 0.25f, 0.5f), Color.white);
-        MakeBlockout(staffRoom.transform, "Chair_3", PrimitiveType.Cylinder, new Vector3(29f, 0.25f, -5f), new Vector3(0.5f, 0.25f, 0.5f), Color.white);
-        MakeBlockout(staffRoom.transform, "Cot_Bed", PrimitiveType.Cube, new Vector3(32.5f, 0.3f, -2f), new Vector3(1f, 0.4f, 2.5f), new Color(0.2f, 0.3f, 0.2f));
+        // 2. 휴게실 테이블 (3D Model)
+        GameObject tablePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BreakTablePrefabPath);
+        if (tablePrefab != null)
+        {
+            GameObject table = PrefabUtility.InstantiatePrefab(tablePrefab, staffRoom.transform) as GameObject;
+            table.name = "Break_Table";
+            table.transform.localPosition = new Vector3(29f, 0.65f, -4f);
+            table.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            table.transform.localScale = new Vector3(30f, 15f, 15f);
+        }
+        else
+        {
+            MakeBlockout(staffRoom.transform, "Break_Table", PrimitiveType.Cube, new Vector3(29f, 0.4f, -4f), new Vector3(2.5f, 0.8f, 1.5f), new Color(0.3f, 0.2f, 0.15f));
+        }
 
-        MakeBlockout(staffRoom.transform, "Rulebook_Board", PrimitiveType.Cube, new Vector3(25f, 1.5f, -0.05f), new Vector3(2f, 1.2f, 0.1f), Color.white); 
-        MakeBlockout(staffRoom.transform, "Status_Board", PrimitiveType.Cube, new Vector3(27.5f, 1.5f, -0.05f), new Vector3(1.5f, 1f, 0.1f), Color.gray); 
+        // 3. 의자 4개 (3D Model)
+        GameObject chairPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(ChairPrefabPath);
+        
+        Vector3[] chairPositions = new Vector3[]
+        {
+            new Vector3(29f, 0f, -2.9f),
+            new Vector3(29f, 0f, -5f),
+            new Vector3(27.2f, 0f, -4f),
+            new Vector3(30.8f, 0f, -4f)
+        };
 
+        float[] chairYRotations = new float[] { 180f, 0f, 90f, -90f };
+
+        for (int i = 0; i < chairPositions.Length; i++)
+        {
+            string chairName = $"Chair_{i + 1}";
+
+            if (chairPrefab != null)
+            {
+                GameObject chair = PrefabUtility.InstantiatePrefab(chairPrefab, staffRoom.transform) as GameObject;
+                chair.name = chairName;
+                chair.transform.localPosition = chairPositions[i];
+                chair.transform.localRotation = Quaternion.Euler(0f, chairYRotations[i], 0f); 
+                chair.transform.localScale = Vector3.one; 
+            }
+            else
+            {
+                MakeBlockout(staffRoom.transform, chairName, PrimitiveType.Cylinder, chairPositions[i] + Vector3.up * 0.25f, new Vector3(0.5f, 0.25f, 0.5f), Color.white);
+            }
+        }
+
+        // 4. 간이 침대 (3D Model)
+        GameObject bedPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CotBedPrefabPath);
+        if (bedPrefab != null)
+        {
+            GameObject bed = PrefabUtility.InstantiatePrefab(bedPrefab, staffRoom.transform) as GameObject;
+            bed.name = "Cot_Bed";
+            bed.transform.localPosition = new Vector3(32.5f, 0f, -2f); 
+            bed.transform.localRotation = Quaternion.Euler(0f, 180f, 0f); 
+            bed.transform.localScale = new Vector3(1f, 1.2f, 1.5f);
+        }
+        else
+        {
+            MakeBlockout(staffRoom.transform, "Cot_Bed", PrimitiveType.Cube, new Vector3(32.5f, 0.3f, -2f), new Vector3(1f, 0.4f, 2.5f), new Color(0.2f, 0.3f, 0.2f));
+        }
+
+        // 5. 통합 게시판 (3D Model)
+        GameObject boardPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BoardPrefabPath);
+        if (boardPrefab != null)
+        {
+            GameObject board = PrefabUtility.InstantiatePrefab(boardPrefab, staffRoom.transform) as GameObject;
+            board.name = "Notice_Board";
+            
+            // 벽면 중앙 높이 위치 (필요시 X/Y 오프셋 조정)
+            board.transform.localPosition = new Vector3(26.25f, 1.25f, -0.05f); 
+            board.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); 
+            board.transform.localScale = new Vector3(12f, 10f, 12f);
+        }
+        else
+        {
+            // Fallback: 기존 2개 게시판 블록아웃
+            MakeBlockout(staffRoom.transform, "Rulebook_Board", PrimitiveType.Cube, new Vector3(25f, 1.5f, -0.05f), new Vector3(2f, 1.2f, 0.1f), Color.white); 
+            MakeBlockout(staffRoom.transform, "Status_Board", PrimitiveType.Cube, new Vector3(27.5f, 1.5f, -0.05f), new Vector3(1.5f, 1f, 0.1f), Color.gray); 
+        }
+
+        // 조명
         AddLight(staffRoom.transform, new Vector3(29f, 2.4f, -4f), new Color(0.85f, 0.9f, 1f), 3.5f, 7f);
     }
 
