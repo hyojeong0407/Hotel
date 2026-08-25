@@ -35,23 +35,34 @@ public static class LobbyBarBuilder
             PlacePrefab(barRoot.transform, "Prop_Bar_Stool", pos, rot, Vector3.one);
         }
 
-        // 3. 샹들리에 조명 4개 (Z축은 앞으로 빼고(-1.8f), Y축은 1층 천장 아래(2.5f)로 설정)
+        // 3. 샹들리에 조명 4개 (랜턴 모델은 가만히 두고, 자식 빛 오브젝트만 아래로 조사)
         for (int i = 0; i < 4; i++)
         {
             GameObject lantern = PlacePrefab(barRoot.transform, "Prop_Pendant_Light", 
-                new Vector3(-3f + i * 2f, 2.5f, -1.8f), // ★ Z축을 진열장이 아닌 카운터 쪽(-1.8f)으로 다시 뺌
-                Vector3.zero, 
+                new Vector3(-3f + i * 2f, 2.5f, -1.8f), 
+                Vector3.zero, // 랜턴 모델 회전 없음(0,0,0)
                 new Vector3(0.5f, 0.5f, 0.5f)); 
             
             if (lantern != null)
             {
-                Light light = lantern.GetComponent<Light>();
-                if (light == null) light = lantern.AddComponent<Light>(); 
+                // 프리팹에 원래 들어있던 Light 컴포넌트가 있다면 정리
+                Light existingLight = lantern.GetComponent<Light>();
+                if (existingLight != null) Object.DestroyImmediate(existingLight);
+
+                // 빛 전용 자식 오브젝트 생성
+                GameObject lightObj = new GameObject("Light_Source");
+                lightObj.transform.SetParent(lantern.transform, false);
                 
-                light.type = LightType.Point;
-                light.color = new Color(0.6f, 0.05f, 0.05f); // 핏빛 조명
-                light.intensity = 2f;
-                light.range = 7f;
+                // 빛 방향만 아래쪽으로 꺾기 (Spot Light의 광원은 +Z 방향으로 쏘아짐)
+                lightObj.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+
+                // Spot Light 추가 및 수치 설정
+                Light light = lightObj.AddComponent<Light>();
+                light.type = LightType.Spot;
+                light.color = new Color(0.6f, 0.05f, 0.05f); 
+                light.intensity = 5f;  
+                light.range = 4f;      // 1층 바닥까지만 닿는 거리
+                light.spotAngle = 80f; // 빛 퍼짐 각도
                 light.shadows = LightShadows.Soft;
             }
         }

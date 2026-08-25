@@ -12,6 +12,20 @@ public static class CorridorDecorationBuilder
     const float ElLobbyCenter_X = 2.2f;
     const float ElLobbyCenter_Z = 2f;
 
+    // 3D 에셋 경로 설정
+    private const string SconcePrefabPath = "Assets/3rdParty/Sconce/Prefabs/PF_BrassWallLamp.prefab";
+    private const string WelcomeMatPrefabPath = "Assets/3rdParty/Mat/source/Welcome_Mat.fbx";
+
+    // 💡 2층 새로 추가된 3D 에셋 경로 (프로젝트 내 위치에 맞춰 수정)
+    private const string GrandfatherClockPrefabPath = "Assets/3rdParty/Clock/source/vintage_grandfather_clock.fbx";
+    private const string ArmchairPrefabPath = "Assets/3rdParty/Furniture/Prefabs//Fotel3.prefab";
+    
+    private const string LockerPrefabPath = "Assets/3rdParty/metal-cabinet/source/locker.fbx";
+    private const string BreakTablePrefabPath = "Assets/3rdParty/Break_table/source/Carver_Coffee_Table.fbx";
+    private const string ChairPrefabPath = "Assets/3rdParty/vintage-wooden-chair/source/Chair.obj";
+    private const string CotBedPrefabPath = "Assets/3rdParty/fbx/ASSET.fbx";
+    private const string BoardPrefabPath = "Assets/3rdParty/Board/source/CorkBulletin.fbx";
+
     [MenuItem("Tools/Hotel Blockout/Decorate Corridor - 1F (Lobby and Staff)")]
     public static void DecorateFloor1()
     {
@@ -30,10 +44,13 @@ public static class CorridorDecorationBuilder
         
         AddWallSconce(root.transform, "Sconce_StaffRoom", new Vector3(29.8f, 1.8f, 0.25f), 180f, light1F);
 
+        // 1층 각 객실 앞 웰컴매트 추가 (FBX 미로드 시 갈색 블록아웃 대체)
+        AddWelcomeMats(root.transform, "Standard_Mat", new Color(0.25f, 0.2f, 0.15f));
+
         AddLight(root.transform, new Vector3(10f, 2.4f, 2f), light1F, 4f, 8f);
         AddLight(root.transform, new Vector3(29f, 2.4f, 2f), light1F, 4f, 8f);
 
-        // 💡 1층 스태프룸 통합 함수 호출
+        // 1층 스태프룸 통합 함수 호출
         BuildStandardStaffRoom(root.transform);
 
         Debug.Log("1F 복도 및 스태프룸 장식 세팅 완료!");
@@ -51,8 +68,41 @@ public static class CorridorDecorationBuilder
         northGap.transform.SetParent(root.transform, false);
         northGap.transform.localPosition = new Vector3(NorthGapCenter_X, 0f, NorthGapCenter_Z);
 
-        MakeBlockout(northGap.transform, "Grandfather_Clock", PrimitiveType.Cube, new Vector3(0, 1.2f, 3.7f), new Vector3(0.8f, 2.4f, 0.4f), Color.white);
-        MakeBlockout(northGap.transform, "Armchair_Left", PrimitiveType.Cube, new Vector3(-1.5f, 0.4f, 2f), new Vector3(1f, 0.8f, 1f), Color.white);
+        // 💡 괘종시계 경로 기반 Instantiate 적용
+        GameObject clockPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(GrandfatherClockPrefabPath);
+        if (clockPrefab != null)
+        {
+            GameObject clock = PrefabUtility.InstantiatePrefab(clockPrefab, northGap.transform) as GameObject;
+            clock.name = "Grandfather_Clock";
+            clock.transform.localPosition = new Vector3(0f, 0f, 3.7f);
+            clock.transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
+            clock.transform.localScale = new Vector3(80f, 80f, 80f);
+        }
+        else
+        {
+            MakeBlockout(northGap.transform, "Grandfather_Clock", PrimitiveType.Cube, new Vector3(0, 1.2f, 3.7f), new Vector3(0.8f, 2.4f, 0.4f), Color.white);
+        }
+        // 💡 fotel3 안락의자 좌/우 경로 기반 Instantiate 적용
+        GameObject armchairPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(ArmchairPrefabPath);
+        if (armchairPrefab != null)
+        {
+            GameObject armchairLeft = PrefabUtility.InstantiatePrefab(armchairPrefab, northGap.transform) as GameObject;
+            armchairLeft.name = "Armchair_Left";
+            armchairLeft.transform.localPosition = new Vector3(-1.5f, 0f, 2f);
+            armchairLeft.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+            armchairLeft.transform.localScale = Vector3.one;
+
+            GameObject armchairRight = PrefabUtility.InstantiatePrefab(armchairPrefab, northGap.transform) as GameObject;
+            armchairRight.name = "Armchair_Right";
+            armchairRight.transform.localPosition = new Vector3(1.5f, 0f, 2f);
+            armchairRight.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);
+            armchairRight.transform.localScale = Vector3.one;
+        }
+        else
+        {
+            MakeBlockout(northGap.transform, "Armchair_Left", PrimitiveType.Cube, new Vector3(-1.5f, 0.4f, 2f), new Vector3(1f, 0.8f, 1f), Color.white);
+            MakeBlockout(northGap.transform, "Armchair_Right", PrimitiveType.Cube, new Vector3(1.5f, 0.4f, 2f), new Vector3(1f, 0.8f, 1f), Color.white);
+        }
         MakeBlockout(northGap.transform, "Armchair_Right", PrimitiveType.Cube, new Vector3(1.5f, 0.4f, 2f), new Vector3(1f, 0.8f, 1f), Color.white);
         MakeBlockout(northGap.transform, "Tea_Table", PrimitiveType.Cylinder, new Vector3(0, 0.3f, 2f), new Vector3(1.2f, 0.3f, 1.2f), Color.white);
         MakeBlockout(northGap.transform, "Console_Table", PrimitiveType.Cube, new Vector3(2.5f, 0.4f, 0f), new Vector3(1.5f, 0.8f, 0.4f), Color.white);
@@ -85,13 +135,11 @@ public static class CorridorDecorationBuilder
         AddWallSconce(root.transform, "Sconce_Room4", new Vector3(36.3f, 1.8f, 0.25f), 180f, light2F);
         AddWallSconce(root.transform, "Sconce_Room5", new Vector3(6.1f, 1.8f, 0.25f), 180f, light2F);
         
-        // 💡 2층 스태프룸 입구 벽부등 추가
         AddWallSconce(root.transform, "Sconce_StaffRoom", new Vector3(29.8f, 1.8f, 0.25f), 180f, light2F);
 
         AddWelcomeMats(root.transform, "Elegant_Mat", new Color(0.5f, 0.1f, 0.1f));
         AddLight(root.transform, new Vector3(10f, 2.4f, 2f), light2F, 4f, 8f);
 
-        // 💡 2층 스태프룸 통합 함수 호출
         BuildStandardStaffRoom(root.transform);
 
         Debug.Log("2F 복도 장식 및 조명 세팅 완료!");
@@ -147,13 +195,11 @@ public static class CorridorDecorationBuilder
         AddWallSconce(root.transform, "Sconce_Room4", new Vector3(36.3f, 1.8f, 0.25f), 180f, light3F);
         AddWallSconce(root.transform, "Sconce_Room5", new Vector3(6.1f, 1.8f, 0.25f), 180f, light3F);
 
-        // 💡 3층 스태프룸 입구 벽부등 추가
         AddWallSconce(root.transform, "Sconce_StaffRoom", new Vector3(29.8f, 1.8f, 0.25f), 180f, light3F);
 
         AddWelcomeMats(root.transform, "Dirty_Mat", new Color(0.3f, 0.3f, 0.3f));
         AddLight(root.transform, new Vector3(10f, 2.4f, 2f), light3F, 3f, 7f);
 
-        // 💡 3층 스태프룸 통합 함수 호출
         BuildStandardStaffRoom(root.transform);
 
         Debug.Log("3F 복도 장식 및 조명 세팅 완료!");
@@ -165,30 +211,24 @@ public static class CorridorDecorationBuilder
         int floorNum = 4;
         float yOffset = (floorNum - 1) * StoryHeight;
         
-        // 4층은 공식 객실이 없으므로 전체 복도 및 빈 공간을 아우르는 루트 생성
         GameObject root = CreateRoot("Floor4_Decorations", yOffset);
 
-        // --- 4층 복도 및 공백 구역: 완전히 부서진 폐허 테마 ---
         GameObject ruins = new GameObject("Ruins_Decor");
         ruins.transform.SetParent(root.transform, false);
 
-        // 1. 무너져 내린 천장 잔해 (바닥에 널브러진 콘크리트 및 벽돌 더미)
         MakeBlockout(ruins.transform, "Rubble_Pile_1", PrimitiveType.Cube, new Vector3(15f, 0.2f, 2f), new Vector3(3f, 0.4f, 2f), Color.gray);
         MakeBlockout(ruins.transform, "Rubble_Pile_2", PrimitiveType.Cube, new Vector3(28f, 0.3f, 2.5f), new Vector3(2.5f, 0.6f, 1.8f), new Color(0.25f, 0.25f, 0.25f));
         MakeBlockout(ruins.transform, "Broken_Beam", PrimitiveType.Cube, new Vector3(21f, 0.1f, 1.5f), new Vector3(4f, 0.3f, 0.8f), new Color(0.15f, 0.15f, 0.15f));
 
-        // 2. 찢겨 나가고 흔적만 남은 낡은 카펫 조각들
         GameObject ruinedCarpet = new GameObject("Torn_Ruined_Carpet");
         ruinedCarpet.transform.SetParent(ruins.transform, false);
         MakeBlockout(ruinedCarpet.transform, "Mat_1", PrimitiveType.Cube, new Vector3(10f, 0.01f, 2f), new Vector3(3f, 0.02f, 1.5f), new Color(0.1f, 0.05f, 0.05f));
         GameObject mat2 = MakeBlockout(ruinedCarpet.transform, "Mat_2", PrimitiveType.Cube, new Vector3(25f, 0.01f, 2.2f), new Vector3(2f, 0.02f, 1.2f), new Color(0.08f, 0.04f, 0.04f));
         mat2.transform.localRotation = Quaternion.Euler(0, 25f, 0);
 
-        // 3. 4층 메인 조명 (벽부등 없이 어둡고 스산한 청회색 빛만 은은하게 배치)
         Color light4F = new Color(0.3f, 0.35f, 0.4f);
         AddLight(root.transform, new Vector3(20f, 2.4f, 2f), light4F, 1.5f, 6f);
 
-        // 4. 바닥에 깔리는 스산한 안개 파티클 이펙트
         AddFogEffect(root.transform);
 
         Debug.Log("4F 폐허 복도 장식 및 안개 파티클 세팅 완료! (벽부등 제거됨)");
@@ -243,13 +283,11 @@ public static class CorridorDecorationBuilder
         AddWallSconce(root.transform, "Sconce_Room4", new Vector3(36.3f, 1.8f, 0.25f), 180f, light5F);
         AddWallSconce(root.transform, "Sconce_Room5", new Vector3(6.1f, 1.8f, 0.25f), 180f, light5F);
 
-        // 💡 5층 스태프룸 입구 벽부등 추가
         AddWallSconce(root.transform, "Sconce_StaffRoom", new Vector3(29.8f, 1.8f, 0.25f), 180f, light5F);
 
         AddWelcomeMats(root.transform, "Bloody_Mat", new Color(0.4f, 0f, 0f));
         AddLight(root.transform, new Vector3(10f, 2.4f, 2f), light5F, 5f, 8f);
 
-        // 💡 5층 스태프룸 통합 함수 호출
         BuildStandardStaffRoom(root.transform);
 
         Debug.Log("5F 복도 장식 및 조명 세팅 완료!");
@@ -301,9 +339,6 @@ public static class CorridorDecorationBuilder
         l.shadows = LightShadows.Soft;
     }
 
-    // 파일 상단 변수 선언부에 에셋 경로 설정 (실제 에셋 위치에 맞춰 변경하세요)
-    // 1단계에서 완성한 프리팹 경로 지정
-    private const string SconcePrefabPath = "Assets/3rdParty/Sconce/Prefabs/PF_BrassWallLamp.prefab";
     static void AddWallSconce(Transform parent, string name, Vector3 pos, float yRotation, Color lightColor)
     {
         GameObject sconceObj = null;
@@ -311,7 +346,6 @@ public static class CorridorDecorationBuilder
 
         if (prefab != null)
         {
-            // 1. 프리팹 생성 및 위치/회전 적용 (3D 모델 원본 재질 유지)
             sconceObj = PrefabUtility.InstantiatePrefab(prefab, parent) as GameObject;
             sconceObj.name = name;
             sconceObj.transform.localPosition = pos;
@@ -319,7 +353,6 @@ public static class CorridorDecorationBuilder
         }
         else
         {
-            // Fallback (3D 에셋 없을 경우 기본 도형 생성)
             sconceObj = new GameObject(name);
             sconceObj.transform.SetParent(parent, false);
             sconceObj.transform.localPosition = pos;
@@ -329,51 +362,68 @@ public static class CorridorDecorationBuilder
             MakeBlockout(sconceObj.transform, "Bulb", PrimitiveType.Sphere, new Vector3(0, 0.1f, -0.1f), new Vector3(0.2f, 0.2f, 0.2f), lightColor);
         }
 
-        // 2. 층별 조명 빛 색상(Point Light)만 변경
         Light l = sconceObj.GetComponentInChildren<Light>();
         if (l == null)
         {
             GameObject lightObj = new GameObject("Sconce_Light_Source");
             lightObj.transform.SetParent(sconceObj.transform, false);
-            
-            // 전구 높이에 맞는 광원 위치 지정
             lightObj.transform.localPosition = new Vector3(0f, 0.25f, -0.4f);
             l = lightObj.AddComponent<Light>();
         }
 
         l.type = LightType.Point;
-        l.color = lightColor; // 1F/2F/3F/5F 각각의 테마 색상 적용
+        l.color = lightColor;
         l.intensity = 2.5f;
         l.range = 5f;
         l.shadows = LightShadows.Soft;
     }
 
-    static void AddWelcomeMats(Transform parent, string matName, Color matColor)
+    // 경로 기반 웰컴매트 생성 함수 (FBX 모델 반영)
+    static void AddWelcomeMats(Transform parent, string matName, Color fallbackColor)
     {
         GameObject matGroup = new GameObject(matName + "_Group");
         matGroup.transform.SetParent(parent, false);
 
-        MakeBlockout(matGroup.transform, $"{matName}_101", PrimitiveType.Cube, new Vector3(43.1f, 0.015f, 3.4f), new Vector3(1.2f, 0.02f, 0.8f), matColor);
-        MakeBlockout(matGroup.transform, $"{matName}_102", PrimitiveType.Cube, new Vector3(32.9f, 0.015f, 3.4f), new Vector3(1.2f, 0.02f, 0.8f), matColor);
-        MakeBlockout(matGroup.transform, $"{matName}_103", PrimitiveType.Cube, new Vector3(12.9f, 0.015f, 3.4f), new Vector3(1.2f, 0.02f, 0.8f), matColor);
+        GameObject matPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(WelcomeMatPrefabPath);
 
-        MakeBlockout(matGroup.transform, $"{matName}_104", PrimitiveType.Cube, new Vector3(35.3f, 0.015f, 0.6f), new Vector3(1.2f, 0.02f, 0.8f), matColor);
-        MakeBlockout(matGroup.transform, $"{matName}_105", PrimitiveType.Cube, new Vector3(5.1f, 0.015f, 0.6f), new Vector3(1.2f, 0.02f, 0.8f), matColor);
+        Vector3[] matPositions = new Vector3[]
+        {
+            new Vector3(43.1f, 0.015f, 3.3f), // 101
+            new Vector3(32.9f, 0.015f, 3.3f), // 102
+            new Vector3(12.9f, 0.015f, 3.3f), // 103
+            new Vector3(35.3f, 0.015f, 0.7f), // 104
+            new Vector3(5.1f, 0.015f, 0.7f)   // 105
+        };
+
+        string[] roomNumbers = new string[] { "101", "102", "103", "104", "105" };
+
+        for (int i = 0; i < matPositions.Length; i++)
+        {
+            string instanceName = $"{matName}_{roomNumbers[i]}";
+
+            if (matPrefab != null)
+            {
+                GameObject mat = PrefabUtility.InstantiatePrefab(matPrefab, matGroup.transform) as GameObject;
+                mat.name = instanceName;
+                mat.transform.localPosition = matPositions[i];
+                
+                mat.transform.localRotation = Quaternion.Euler(-90f, 90f, 0f);
+                mat.transform.localScale = new Vector3(8f, 7f, 10f);
+            }
+            else
+            {
+                // FBX가 없을 경우 폴백 블록아웃 생성
+                MakeBlockout(matGroup.transform, instanceName, PrimitiveType.Cube, matPositions[i], new Vector3(1.2f, 0.02f, 0.8f), fallbackColor);
+            }
+        }
     }
-
-    // 상단 변수 선언부에 에셋 경로 지정
-    private const string LockerPrefabPath = "Assets/3rdParty/metal-cabinet/source/locker.fbx";
-    private const string BreakTablePrefabPath = "Assets/3rdParty/Break_table/source/Carver_Coffee_Table.fbx";
-    private const string ChairPrefabPath = "Assets/3rdParty/vintage-wooden-chair/source/Chair.obj";
-    private const string CotBedPrefabPath = "Assets/3rdParty/fbx/ASSET.fbx";
-    private const string BoardPrefabPath = "Assets/3rdParty/Board/source/CorkBulletin.fbx";
 
     static void BuildStandardStaffRoom(Transform parent)
     {
         GameObject staffRoom = new GameObject("Staff_Room_Decor");
         staffRoom.transform.SetParent(parent, false); 
         
-        // 1. 락커 (3D Model)
+        // 1. 락커
         GameObject lockerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(LockerPrefabPath);
         for (int i = 0; i < 4; i++)
         {
@@ -392,7 +442,7 @@ public static class CorridorDecorationBuilder
             }
         }
 
-        // 2. 휴게실 테이블 (3D Model)
+        // 2. 휴게실 테이블
         GameObject tablePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BreakTablePrefabPath);
         if (tablePrefab != null)
         {
@@ -407,7 +457,7 @@ public static class CorridorDecorationBuilder
             MakeBlockout(staffRoom.transform, "Break_Table", PrimitiveType.Cube, new Vector3(29f, 0.4f, -4f), new Vector3(2.5f, 0.8f, 1.5f), new Color(0.3f, 0.2f, 0.15f));
         }
 
-        // 3. 의자 4개 (3D Model)
+        // 3. 의자 4개
         GameObject chairPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(ChairPrefabPath);
         
         Vector3[] chairPositions = new Vector3[]
@@ -438,7 +488,7 @@ public static class CorridorDecorationBuilder
             }
         }
 
-        // 4. 간이 침대 (3D Model)
+        // 4. 간이 침대
         GameObject bedPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CotBedPrefabPath);
         if (bedPrefab != null)
         {
@@ -453,21 +503,18 @@ public static class CorridorDecorationBuilder
             MakeBlockout(staffRoom.transform, "Cot_Bed", PrimitiveType.Cube, new Vector3(32.5f, 0.3f, -2f), new Vector3(1f, 0.4f, 2.5f), new Color(0.2f, 0.3f, 0.2f));
         }
 
-        // 5. 통합 게시판 (3D Model)
+        // 5. 통합 게시판
         GameObject boardPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BoardPrefabPath);
         if (boardPrefab != null)
         {
             GameObject board = PrefabUtility.InstantiatePrefab(boardPrefab, staffRoom.transform) as GameObject;
             board.name = "Notice_Board";
-            
-            // 벽면 중앙 높이 위치 (필요시 X/Y 오프셋 조정)
             board.transform.localPosition = new Vector3(26.25f, 1.25f, -0.05f); 
             board.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); 
             board.transform.localScale = new Vector3(12f, 10f, 12f);
         }
         else
         {
-            // Fallback: 기존 2개 게시판 블록아웃
             MakeBlockout(staffRoom.transform, "Rulebook_Board", PrimitiveType.Cube, new Vector3(25f, 1.5f, -0.05f), new Vector3(2f, 1.2f, 0.1f), Color.white); 
             MakeBlockout(staffRoom.transform, "Status_Board", PrimitiveType.Cube, new Vector3(27.5f, 1.5f, -0.05f), new Vector3(1.5f, 1f, 0.1f), Color.gray); 
         }
@@ -481,33 +528,27 @@ public static class CorridorDecorationBuilder
     {
         GameObject fog = new GameObject("Creepy_Fog_Particles");
         fog.transform.SetParent(parent, false);
-        // 복도 중앙, 바닥에 가깝게 배치
         fog.transform.localPosition = new Vector3(20f, 0.5f, 2f);
 
         ParticleSystem ps = fog.AddComponent<ParticleSystem>();
         
-        // 파티클 메인 모듈 설정
         var main = ps.main;
-        main.startLifetime = 12f;                  // 안개가 오래 머물도록
-        main.startSpeed = 0.2f;                    // 천천히 흘러가게
-        main.startSize = 8f;                       // 입자 크기 큼직하게 설정
-        main.startColor = new Color(0.7f, 0.75f, 0.8f, 0.05f); // 매우 옅은 반투명 청회색
+        main.startLifetime = 12f;
+        main.startSpeed = 0.2f;
+        main.startSize = 8f;
+        main.startColor = new Color(0.7f, 0.75f, 0.8f, 0.05f);
         main.maxParticles = 400;
         main.simulationSpace = ParticleSystemSimulationSpace.World;
 
-        // 파티클 방출량 설정
         var emission = ps.emission;
         emission.rateOverTime = 20f;
 
-        // 파티클 형태 설정 (4층 복도 전체를 덮을 수 있는 넓은 Box 형태)
         var shape = ps.shape;
         shape.shapeType = ParticleSystemShapeType.Box;
         shape.scale = new Vector3(45f, 2f, 8f);
 
-        // 안개가 부드럽게 렌더링되도록 기본 머티리얼 적용
         var renderer = fog.GetComponent<ParticleSystemRenderer>();
         
-        // [수정된 부분] 유니티 내장 기본 파티클 머티리얼을 불러와서 할당 (분홍색 에러 방지)
         Material defaultParticleMat = UnityEditor.AssetDatabase.GetBuiltinExtraResource<Material>("Default-ParticleSystem.mat");
         
         if (defaultParticleMat != null)
@@ -516,7 +557,6 @@ public static class CorridorDecorationBuilder
         }
         else
         {
-            // 혹시라도 기본 머티리얼을 못 찾을 경우 임시 쉐이더 생성
             Shader unlitShader = Shader.Find("Particles/Standard Unlit");
             if (unlitShader == null) unlitShader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
             
