@@ -19,6 +19,9 @@ public static class CorridorDecorationBuilder
     // 💡 2층 새로 추가된 3D 에셋 경로 (프로젝트 내 위치에 맞춰 수정)
     private const string GrandfatherClockPrefabPath = "Assets/3rdParty/Clock/source/vintage_grandfather_clock.fbx";
     private const string ArmchairPrefabPath = "Assets/3rdParty/Furniture/Prefabs//Fotel3.prefab";
+    private const string TeaTablePrefabPath = "Assets/3rdParty/Furniture/Prefabs/RoundTable.prefab";
+    private const string ConsoleTablePrefabPath = "Assets/3rdParty/console-table/source/ConsoleTable.fbx";
+    private const string PorcelainVasePrefabPath = "Assets/3rdParty/Porcelain_Vase/vase.blend";
     
     private const string LockerPrefabPath = "Assets/3rdParty/metal-cabinet/source/locker.fbx";
     private const string BreakTablePrefabPath = "Assets/3rdParty/Break_table/source/Carver_Coffee_Table.fbx";
@@ -74,9 +77,9 @@ public static class CorridorDecorationBuilder
         {
             GameObject clock = PrefabUtility.InstantiatePrefab(clockPrefab, northGap.transform) as GameObject;
             clock.name = "Grandfather_Clock";
-            clock.transform.localPosition = new Vector3(0f, 0f, 3.7f);
-            clock.transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
-            clock.transform.localScale = new Vector3(80f, 80f, 80f);
+            clock.transform.localPosition = new Vector3(0f, 0f, 3.8f);
+            clock.transform.localRotation = Quaternion.Euler(-90f, 180f, 0f);
+            clock.transform.localScale = new Vector3(100f, 100f, 100f);
         }
         else
         {
@@ -90,23 +93,61 @@ public static class CorridorDecorationBuilder
             armchairLeft.name = "Armchair_Left";
             armchairLeft.transform.localPosition = new Vector3(-1.5f, 0f, 2f);
             armchairLeft.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
-            armchairLeft.transform.localScale = Vector3.one;
+            armchairLeft.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
 
             GameObject armchairRight = PrefabUtility.InstantiatePrefab(armchairPrefab, northGap.transform) as GameObject;
             armchairRight.name = "Armchair_Right";
             armchairRight.transform.localPosition = new Vector3(1.5f, 0f, 2f);
             armchairRight.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);
-            armchairRight.transform.localScale = Vector3.one;
+            armchairRight.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
         }
         else
         {
             MakeBlockout(northGap.transform, "Armchair_Left", PrimitiveType.Cube, new Vector3(-1.5f, 0.4f, 2f), new Vector3(1f, 0.8f, 1f), Color.white);
             MakeBlockout(northGap.transform, "Armchair_Right", PrimitiveType.Cube, new Vector3(1.5f, 0.4f, 2f), new Vector3(1f, 0.8f, 1f), Color.white);
         }
-        MakeBlockout(northGap.transform, "Armchair_Right", PrimitiveType.Cube, new Vector3(1.5f, 0.4f, 2f), new Vector3(1f, 0.8f, 1f), Color.white);
-        MakeBlockout(northGap.transform, "Tea_Table", PrimitiveType.Cylinder, new Vector3(0, 0.3f, 2f), new Vector3(1.2f, 0.3f, 1.2f), Color.white);
-        MakeBlockout(northGap.transform, "Console_Table", PrimitiveType.Cube, new Vector3(2.5f, 0.4f, 0f), new Vector3(1.5f, 0.8f, 0.4f), Color.white);
-        MakeBlockout(northGap.transform, "Porcelain_Vase", PrimitiveType.Cylinder, new Vector3(2.5f, 1.0f, 0f), new Vector3(0.3f, 0.2f, 0.3f), Color.white);
+        // 3. RoundTable 티 테이블 로드
+        GameObject teaTablePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(TeaTablePrefabPath);
+        if (teaTablePrefab != null)
+        {
+            GameObject teaTable = PrefabUtility.InstantiatePrefab(teaTablePrefab, northGap.transform) as GameObject;
+            teaTable.name = "Tea_Table";
+            teaTable.transform.localPosition = new Vector3(0f, 0f, 2f);
+            teaTable.transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
+            teaTable.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
+        }
+        else
+        {
+            MakeBlockout(northGap.transform, "Tea_Table", PrimitiveType.Cylinder, new Vector3(0, 0.3f, 2f), new Vector3(1.2f, 0.3f, 1.2f), Color.white);
+        }
+        // Console_Table 콘솔 테이블 로드
+        GameObject consoleTablePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(ConsoleTablePrefabPath);
+        if (consoleTablePrefab != null)
+        {
+            GameObject consoleTable = PrefabUtility.InstantiatePrefab(consoleTablePrefab, northGap.transform) as GameObject;
+            consoleTable.name = "Console_Table";
+            consoleTable.transform.localPosition = new Vector3(2.5f, 0f, 0f);
+            consoleTable.transform.localRotation = Quaternion.Euler(-90f, 180f, 0f);
+            consoleTable.transform.localScale = new Vector3(10f, 10f, 10f);
+        }
+        else
+        {
+            MakeBlockout(northGap.transform, "Console_Table", PrimitiveType.Cube, new Vector3(2.5f, 0.4f, 0f), new Vector3(1.5f, 0.8f, 0.4f), Color.white);
+        }
+        // Porcelain_Vase 도자기 꽃병 로드
+        GameObject vasePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PorcelainVasePrefabPath);
+        if (vasePrefab != null)
+        {
+            GameObject vase = PrefabUtility.InstantiatePrefab(vasePrefab, northGap.transform) as GameObject;
+            vase.name = "Porcelain_Vase";
+            vase.transform.localPosition = new Vector3(2.5f, 0.8f, 0f);
+            vase.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            vase.transform.localScale = new Vector3(1.5f, 1.5f, 1.5f);
+        }
+        else
+        {
+            MakeBlockout(northGap.transform, "Porcelain_Vase", PrimitiveType.Cylinder, new Vector3(2.5f, 1.0f, 0f), new Vector3(0.3f, 0.2f, 0.3f), Color.white);
+        }
 
         GameObject westVoid = new GameObject("West_Void_Decor");
         westVoid.transform.SetParent(root.transform, false);
