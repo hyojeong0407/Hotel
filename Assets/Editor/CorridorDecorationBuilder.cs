@@ -22,6 +22,10 @@ public static class CorridorDecorationBuilder
     private const string TeaTablePrefabPath = "Assets/3rdParty/Furniture/Prefabs/RoundTable.prefab";
     private const string ConsoleTablePrefabPath = "Assets/3rdParty/console-table/source/ConsoleTable.fbx";
     private const string PorcelainVasePrefabPath = "Assets/3rdParty/Porcelain_Vase/vase.blend";
+    private const string HorseStatuePrefabPath = "Assets/3rdParty/horse-statue/source/horse_statue.fbx";
+    private const string BrassPotPrefabPath = "Assets/3rdParty/Antique_brass_vase/Antique_brass_vase.fbx";
+    private const string LuggageCartPrefabPath = "Assets/3rdParty/luggage/luggage_cart.blend";
+    private const string TrashBinPrefabPath = "Assets/3rdParty/trash_can/Bin_Meshy.fbx";
     
     private const string LockerPrefabPath = "Assets/3rdParty/metal-cabinet/source/locker.fbx";
     private const string BreakTablePrefabPath = "Assets/3rdParty/Break_table/source/Carver_Coffee_Table.fbx";
@@ -153,16 +157,71 @@ public static class CorridorDecorationBuilder
         westVoid.transform.SetParent(root.transform, false);
         westVoid.transform.localPosition = new Vector3(WestVoidCenter_X, 0f, WestVoidCenter_Z);
 
-        MakeBlockout(westVoid.transform, "Statue_Base", PrimitiveType.Cube, new Vector3(0, 0.4f, -2f), new Vector3(1f, 0.8f, 1f), Color.white);
-        MakeBlockout(westVoid.transform, "Marble_Statue", PrimitiveType.Cylinder, new Vector3(0, 1.6f, -2f), new Vector3(0.6f, 0.8f, 0.6f), Color.white);
-        MakeBlockout(westVoid.transform, "Brass_Pot", PrimitiveType.Cylinder, new Vector3(3f, 0.4f, -3f), new Vector3(0.8f, 0.4f, 0.8f), Color.white);
+        // Horse_Statue 말 동상 로드 (받침대 통합형)
+        GameObject statuePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(HorseStatuePrefabPath);
+        if (statuePrefab != null)
+        {
+            GameObject statue = PrefabUtility.InstantiatePrefab(statuePrefab, westVoid.transform) as GameObject;
+            statue.name = "Horse_Statue";
+            statue.transform.localPosition = new Vector3(0f, 0f, -2f);
+            statue.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            statue.transform.localScale = new Vector3(10f, 10f, 10f);
+        }
+        else
+        {
+            // 로드 실패 시 기존 2개 블록아웃으로 대체
+            MakeBlockout(westVoid.transform, "Statue_Base", PrimitiveType.Cube, new Vector3(0, 0.4f, -2f), new Vector3(1f, 0.8f, 1f), Color.white);
+            MakeBlockout(westVoid.transform, "Marble_Statue", PrimitiveType.Cylinder, new Vector3(0, 1.6f, -2f), new Vector3(0.6f, 0.8f, 0.6f), Color.white);
+        }
+        // Brass_Pot (Antique Brass Vase) 황동 화병 로드
+        GameObject brassPotPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BrassPotPrefabPath);
+        if (brassPotPrefab != null)
+        {
+            GameObject brassPot = PrefabUtility.InstantiatePrefab(brassPotPrefab, westVoid.transform) as GameObject;
+            brassPot.name = "Brass_Pot";
+            brassPot.transform.localPosition = new Vector3(3f, 0f, -3f);
+            brassPot.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            brassPot.transform.localScale = new Vector3(1f, 1f, 1f);
+        }
+        else
+        {
+            MakeBlockout(westVoid.transform, "Brass_Pot", PrimitiveType.Cylinder, new Vector3(3f, 0.4f, -3f), new Vector3(0.8f, 0.4f, 0.8f), Color.white);
+        }
 
         GameObject elLobby = new GameObject("EL_Lobby_Decor");
         elLobby.transform.SetParent(root.transform, false);
         elLobby.transform.localPosition = new Vector3(ElLobbyCenter_X, 0f, ElLobbyCenter_Z);
 
-        MakeBlockout(elLobby.transform, "Luggage_Cart", PrimitiveType.Cube, new Vector3(-1.3f, 0.8f, -1.5f), new Vector3(1.5f, 1.6f, 0.8f), Color.white);
-        MakeBlockout(elLobby.transform, "Brass_TrashBin", PrimitiveType.Cylinder, new Vector3(1.5f, 0.6f, -1f), new Vector3(0.5f, 0.6f, 0.5f), Color.white);
+        // Luggage_Cart 러기지 카트 로드
+        GameObject luggageCartPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(LuggageCartPrefabPath);
+        if (luggageCartPrefab != null)
+        {
+            GameObject luggageCart = PrefabUtility.InstantiatePrefab(luggageCartPrefab, elLobby.transform) as GameObject;
+            luggageCart.name = "Luggage_Cart";
+            luggageCart.transform.localPosition = new Vector3(-1.3f, 0f, -1.5f);
+            luggageCart.transform.localRotation = Quaternion.Euler(-90f, 90f, 0f);
+            luggageCart.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
+        }
+        else
+        {
+            // 모델 로드 실패 시 기존 큐브 블록아웃 생성
+            MakeBlockout(elLobby.transform, "Luggage_Cart", PrimitiveType.Cube, new Vector3(-1.3f, 0.8f, -1.5f), new Vector3(1.5f, 1.6f, 0.8f), Color.white);
+        }
+        // Brass_TrashBin 휴지통 로드
+        GameObject trashBinPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(TrashBinPrefabPath);
+        if (trashBinPrefab != null)
+        {
+            GameObject trashBin = PrefabUtility.InstantiatePrefab(trashBinPrefab, elLobby.transform) as GameObject;
+            trashBin.name = "Brass_TrashBin";
+            trashBin.transform.localPosition = new Vector3(1.5f, 0f, -1f);
+            trashBin.transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
+            trashBin.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+        }
+        else
+        {
+            // 로드 실패 시 기존 블록아웃 생성
+            MakeBlockout(elLobby.transform, "Brass_TrashBin", PrimitiveType.Cylinder, new Vector3(1.5f, 0.6f, -1f), new Vector3(0.5f, 0.6f, 0.5f), Color.white);
+        }
 
         GameObject carpet2F = new GameObject("Red_Carpet");
         carpet2F.transform.SetParent(root.transform, false); 
