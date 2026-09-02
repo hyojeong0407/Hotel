@@ -26,6 +26,7 @@ public static class CorridorDecorationBuilder
     private const string BrassPotPrefabPath = "Assets/3rdParty/Antique_brass_vase/Antique_brass_vase.fbx";
     private const string LuggageCartPrefabPath = "Assets/3rdParty/luggage/luggage_cart.blend";
     private const string TrashBinPrefabPath = "Assets/3rdParty/trash_can/Bin_Meshy.fbx";
+    private const string CarpetPrefabPath = "Assets/3rdParty/Red/carpet.obj";
     
     private const string LockerPrefabPath = "Assets/3rdParty/metal-cabinet/source/locker.fbx";
     private const string BreakTablePrefabPath = "Assets/3rdParty/Break_table/source/Carver_Coffee_Table.fbx";
@@ -215,7 +216,7 @@ public static class CorridorDecorationBuilder
             trashBin.name = "Brass_TrashBin";
             trashBin.transform.localPosition = new Vector3(1.5f, 0f, -1f);
             trashBin.transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
-            trashBin.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+            trashBin.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
         }
         else
         {
@@ -223,9 +224,23 @@ public static class CorridorDecorationBuilder
             MakeBlockout(elLobby.transform, "Brass_TrashBin", PrimitiveType.Cylinder, new Vector3(1.5f, 0.6f, -1f), new Vector3(0.5f, 0.6f, 0.5f), Color.white);
         }
 
-        GameObject carpet2F = new GameObject("Red_Carpet");
-        carpet2F.transform.SetParent(root.transform, false); 
-        MakeBlockout(carpet2F.transform, "Main_Carpet", PrimitiveType.Cube, new Vector3(10.5f, 0.01f, 2f), new Vector3(15f, 0.02f, 2f), new Color(0.6f, 0.1f, 0.1f));
+        // Red_Carpet 레드 카펫 로드
+        GameObject carpetPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CarpetPrefabPath);
+        if (carpetPrefab != null)
+        {
+            GameObject carpet = PrefabUtility.InstantiatePrefab(carpetPrefab, root.transform) as GameObject;
+            carpet.name = "Main_Carpet";
+            carpet.transform.localPosition = new Vector3(10.5f, 0.01f, 2f);
+            carpet.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+            carpet.transform.localScale = new Vector3(0.3f, 0.7f, 0.7f);
+        }
+        else
+        {
+            // 로드 실패 시 기존 블록아웃 생성
+            GameObject carpet2F = new GameObject("Red_Carpet");
+            carpet2F.transform.SetParent(root.transform, false);
+            MakeBlockout(carpet2F.transform, "Main_Carpet", PrimitiveType.Cube, new Vector3(10.5f, 0.01f, 2f), new Vector3(15f, 0.02f, 2f), new Color(0.6f, 0.1f, 0.1f));
+        }
 
         Color light2F = new Color(1f, 0.8f, 0.5f);
         
