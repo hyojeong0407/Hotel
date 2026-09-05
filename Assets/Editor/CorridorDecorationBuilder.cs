@@ -27,6 +27,10 @@ public static class CorridorDecorationBuilder
     private const string LuggageCartPrefabPath = "Assets/3rdParty/luggage/luggage_cart.blend";
     private const string TrashBinPrefabPath = "Assets/3rdParty/trash_can/Bin_Meshy.fbx";
     private const string CarpetPrefabPath = "Assets/3rdParty/Red/carpet.obj";
+
+    // 💡 3층 새로 추가된 3D 에셋 경로 (프로젝트 내 위치에 맞춰 수정)
+    private const string BrokenChairPrefabPath = "Assets/3rdParty/MedievalTavernPack/Prefabs/Furniture/Chair_01.prefab";
+    private const string BrokenTablePrefabPath = "Assets/3rdParty/Table/Broken_Table.obj";
     
     private const string LockerPrefabPath = "Assets/3rdParty/metal-cabinet/source/locker.fbx";
     private const string BreakTablePrefabPath = "Assets/3rdParty/Break_table/source/Carver_Coffee_Table.fbx";
@@ -272,11 +276,52 @@ public static class CorridorDecorationBuilder
         northGap.transform.SetParent(root.transform, false);
         northGap.transform.localPosition = new Vector3(NorthGapCenter_X, 0f, NorthGapCenter_Z);
 
-        GameObject clock = MakeBlockout(northGap.transform, "Broken_Clock", PrimitiveType.Cube, new Vector3(0, 1.2f, 3.7f), new Vector3(0.8f, 2.4f, 0.4f), Color.white);
-        clock.transform.localRotation = Quaternion.Euler(0, 0, 15f);
-        GameObject chair = MakeBlockout(northGap.transform, "Overturned_Chair", PrimitiveType.Cube, new Vector3(-1.5f, 0.5f, 2f), new Vector3(1f, 1f, 0.8f), Color.white);
-        chair.transform.localRotation = Quaternion.Euler(90f, 30f, 0); 
-        MakeBlockout(northGap.transform, "Broken_Table", PrimitiveType.Cylinder, new Vector3(0.5f, 0.1f, 2.5f), new Vector3(1.2f, 0.1f, 0.8f), Color.white);
+        // 💡 괘종시계 경로 기반 Instantiate (고장나서 기울어진 연출)
+        GameObject clockPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(GrandfatherClockPrefabPath);
+        if (clockPrefab != null)
+        {
+            GameObject clock = PrefabUtility.InstantiatePrefab(clockPrefab, northGap.transform) as GameObject;
+            clock.name = "Grandfather_Clock";
+            clock.transform.localPosition = new Vector3(0f, 0f, 3.7f);
+            
+            // 기본 회전(-90, 180, 0)에 시계 기준 좌우 기울임(15도)을 한 줄로 합성
+            clock.transform.localRotation = Quaternion.Euler(-90f, 180f, 0f) * Quaternion.Euler(0f, 0f, 15f);
+        }
+        else
+        {
+            MakeBlockout(northGap.transform, "Grandfather_Clock", PrimitiveType.Cube, new Vector3(0, 1.2f, 3.7f), new Vector3(0.8f, 2.4f, 0.4f), Color.white);
+        }
+
+        // Overturned_Chair 넘어진 의자 로드
+        GameObject chairPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BrokenChairPrefabPath);
+        if (chairPrefab != null)
+        {
+            GameObject chair = PrefabUtility.InstantiatePrefab(chairPrefab, northGap.transform) as GameObject;
+            chair.name = "Overturned_Chair";
+            chair.transform.localPosition = new Vector3(-1.5f, 0.3f, 2f);
+            chair.transform.localRotation = Quaternion.Euler(90f, 30f, 0f);
+            chair.transform.localScale = new Vector3(1.2f, 1.2f, 1.2f);
+        }
+        else
+        {
+            GameObject chair = MakeBlockout(northGap.transform, "Overturned_Chair", PrimitiveType.Cube, new Vector3(-1.5f, 0.5f, 2f), new Vector3(1f, 1f, 0.8f), Color.white);
+            chair.transform.localRotation = Quaternion.Euler(90f, 30f, 0f);
+        }
+
+        // Broken_Table 부서진 테이블 로드
+        GameObject brokenTablePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BrokenTablePrefabPath);
+        if (brokenTablePrefab != null)
+        {
+            GameObject brokenTable = PrefabUtility.InstantiatePrefab(brokenTablePrefab, northGap.transform) as GameObject;
+            brokenTable.name = "Broken_Table";
+            brokenTable.transform.localPosition = new Vector3(1f, 0.2f, 2.5f);
+            brokenTable.transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
+            brokenTable.transform.localScale = new Vector3(0.2f, 0.2f, 0.2f);
+        }
+        else
+        {
+            MakeBlockout(northGap.transform, "Broken_Table", PrimitiveType.Cylinder, new Vector3(0.5f, 0.1f, 2.5f), new Vector3(1.2f, 0.1f, 0.8f), Color.white);
+        }
 
         GameObject westVoid = new GameObject("West_Void_Decor");
         westVoid.transform.SetParent(root.transform, false);
