@@ -31,6 +31,8 @@ public static class CorridorDecorationBuilder
     // 💡 3층 새로 추가된 3D 에셋 경로 (프로젝트 내 위치에 맞춰 수정)
     private const string BrokenChairPrefabPath = "Assets/3rdParty/MedievalTavernPack/Prefabs/Furniture/Chair_01.prefab";
     private const string BrokenTablePrefabPath = "Assets/3rdParty/Table/Broken_Table.obj";
+    private const string LinenCartPrefabPath = "Assets/3rdParty/Linen/linen-cart.fbx";
+    private const string CoveredFigurePrefabPath = "Assets/3rdParty/simple-body-cover/source/body.blend";
     
     private const string LockerPrefabPath = "Assets/3rdParty/metal-cabinet/source/locker.fbx";
     private const string BreakTablePrefabPath = "Assets/3rdParty/Break_table/source/Carver_Coffee_Table.fbx";
@@ -327,8 +329,34 @@ public static class CorridorDecorationBuilder
         westVoid.transform.SetParent(root.transform, false);
         westVoid.transform.localPosition = new Vector3(WestVoidCenter_X, 0f, WestVoidCenter_Z);
 
-        MakeBlockout(westVoid.transform, "Creepy_Linen_Cart", PrimitiveType.Cube, new Vector3(2f, 0.6f, -1f), new Vector3(1.2f, 1.2f, 1.8f), Color.white);
-        MakeBlockout(westVoid.transform, "Covered_Figure", PrimitiveType.Sphere, new Vector3(2f, 1.4f, -0.5f), new Vector3(0.8f, 0.8f, 0.8f), Color.white);
+        // Creepy_Linen_Cart 린넨 카트 로드 (westVoid)
+        GameObject linenCartPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(LinenCartPrefabPath);
+        if (linenCartPrefab != null)
+        {
+            GameObject linenCart = PrefabUtility.InstantiatePrefab(linenCartPrefab, westVoid.transform) as GameObject;
+            linenCart.name = "Creepy_Linen_Cart";
+            linenCart.transform.localPosition = new Vector3(1.6f, 0f, -1f);
+            linenCart.transform.localRotation = Quaternion.Euler(-90f, 90f, 0f);
+            linenCart.transform.localScale = new Vector3(2f, 1.7f, 1.3f);
+        }
+        else
+        {
+            MakeBlockout(westVoid.transform, "Creepy_Linen_Cart", PrimitiveType.Cube, new Vector3(2f, 0.6f, -1f), new Vector3(1.2f, 1.2f, 1.8f), Color.white);
+        }
+        // Covered_Figure 천으로 덮인 형체 로드 (westVoid)
+        GameObject coveredFigurePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CoveredFigurePrefabPath);
+        if (coveredFigurePrefab != null)
+        {
+            GameObject coveredFigure = PrefabUtility.InstantiatePrefab(coveredFigurePrefab, westVoid.transform) as GameObject;
+            coveredFigure.name = "Covered_Figure";
+            coveredFigure.transform.localPosition = new Vector3(1.3f, 1f, 0.25f);
+            coveredFigure.transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
+            coveredFigure.transform.localScale = Vector3.one;
+        }
+        else
+        {
+            MakeBlockout(westVoid.transform, "Covered_Figure", PrimitiveType.Sphere, new Vector3(2f, 1.4f, -0.5f), new Vector3(0.8f, 0.8f, 0.8f), Color.white);
+        }
         GameObject creepyPainting = MakeBlockout(westVoid.transform, "Crooked_Painting", PrimitiveType.Cube, new Vector3(-2f, 1.5f, -3.9f), new Vector3(1f, 1.2f, 0.05f), Color.white);
         creepyPainting.transform.localRotation = Quaternion.Euler(0, 0, -25f);
 
