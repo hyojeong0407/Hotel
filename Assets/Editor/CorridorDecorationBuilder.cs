@@ -33,6 +33,7 @@ public static class CorridorDecorationBuilder
     private const string BrokenTablePrefabPath = "Assets/3rdParty/Table/Broken_Table.obj";
     private const string LinenCartPrefabPath = "Assets/3rdParty/Linen/linen-cart.fbx";
     private const string CoveredFigurePrefabPath = "Assets/3rdParty/simple-body-cover/source/body.blend";
+    private const string PaintingPrefabPath = "Assets/3rdParty/Paint/Painting.blend";
     
     private const string LockerPrefabPath = "Assets/3rdParty/metal-cabinet/source/locker.fbx";
     private const string BreakTablePrefabPath = "Assets/3rdParty/Break_table/source/Carver_Coffee_Table.fbx";
@@ -357,8 +358,27 @@ public static class CorridorDecorationBuilder
         {
             MakeBlockout(westVoid.transform, "Covered_Figure", PrimitiveType.Sphere, new Vector3(2f, 1.4f, -0.5f), new Vector3(0.8f, 0.8f, 0.8f), Color.white);
         }
-        GameObject creepyPainting = MakeBlockout(westVoid.transform, "Crooked_Painting", PrimitiveType.Cube, new Vector3(-2f, 1.5f, -3.9f), new Vector3(1f, 1.2f, 0.05f), Color.white);
-        creepyPainting.transform.localRotation = Quaternion.Euler(0, 0, -25f);
+        // Crooked_Painting 액자 로드 (westVoid)
+        GameObject paintingPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PaintingPrefabPath);
+        if (paintingPrefab != null)
+        {
+            GameObject painting = PrefabUtility.InstantiatePrefab(paintingPrefab, westVoid.transform) as GameObject;
+            painting.name = "Crooked_Painting";
+            painting.transform.localPosition = new Vector3(-2f, 1.5f, -3.98f);
+            
+
+            painting.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            painting.transform.localScale = new Vector3(1.2f, 1.2f, 1.2f);
+
+            painting.transform.GetChild(0).localRotation = Quaternion.Euler(0f, 20f, 0f);
+            painting.transform.GetChild(1).localRotation = Quaternion.Euler(0f, 20f, 0f);
+        }
+        else
+        {
+            // 예외 처리 (블록아웃)
+            GameObject creepyPainting = MakeBlockout(westVoid.transform, "Crooked_Painting", PrimitiveType.Cube, new Vector3(-2f, 1.5f, -3.9f), new Vector3(1f, 1.2f, 0.05f), Color.white);
+            creepyPainting.transform.localRotation = Quaternion.Euler(-90f, 0f, -25f);
+        }
 
         GameObject elLobby = new GameObject("EL_Lobby_Decor");
         elLobby.transform.SetParent(root.transform, false);
