@@ -34,6 +34,10 @@ public static class CorridorDecorationBuilder
     private const string LinenCartPrefabPath = "Assets/3rdParty/Linen/linen-cart.fbx";
     private const string CoveredFigurePrefabPath = "Assets/3rdParty/simple-body-cover/source/body.blend";
     private const string PaintingPrefabPath = "Assets/3rdParty/Paint/Painting.blend";
+    private const string DirtyRugPrefabPath = "Assets/3rdParty/Rug/rug.fbx";
+    private const string JanitorCartPrefabPath = "Assets/3rdParty/janitor/TwoShelfIndustrialCartonWheels_Joined.blend";
+    private const string SpilledLiquidPrefabPath = "Assets/3rdParty/Spill/Splat_01.fbx";
+    private const string TornCarpetPrefabPath = "Assets/3rdParty/Torn/Rug.blend";
     
     private const string LockerPrefabPath = "Assets/3rdParty/metal-cabinet/source/locker.fbx";
     private const string BreakTablePrefabPath = "Assets/3rdParty/Break_table/source/Carver_Coffee_Table.fbx";
@@ -384,17 +388,100 @@ public static class CorridorDecorationBuilder
         elLobby.transform.SetParent(root.transform, false);
         elLobby.transform.localPosition = new Vector3(ElLobbyCenter_X, 0f, ElLobbyCenter_Z);
 
-        MakeBlockout(elLobby.transform, "Dirty_Rug", PrimitiveType.Cube, new Vector3(0, 0.01f, 0), new Vector3(3f, 0.02f, 2f), Color.gray);
-        GameObject janitorCart = MakeBlockout(elLobby.transform, "Broken_Janitor_Cart", PrimitiveType.Cube, new Vector3(1.5f, 0.4f, 1f), new Vector3(0.8f, 1.2f, 0.6f), Color.white);
-        janitorCart.transform.localRotation = Quaternion.Euler(0, 0, 75f); 
-        MakeBlockout(elLobby.transform, "Spilled_Liquid", PrimitiveType.Cube, new Vector3(1.2f, 0.01f, 0.5f), new Vector3(2f, 0.02f, 1.5f), Color.black);
+        // Dirty_Rug 더러운 러그 로드 (elLobby)
+        GameObject dirtyRugPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(DirtyRugPrefabPath);
+        if (dirtyRugPrefab != null)
+        {
+            GameObject dirtyRug = PrefabUtility.InstantiatePrefab(dirtyRugPrefab, elLobby.transform) as GameObject;
+            dirtyRug.name = "Dirty_Rug";
+            
+            // 바닥 깜빡임(Z-fighting) 방지를 위해 Y값 0.01f 유지
+            dirtyRug.transform.localPosition = new Vector3(0f, 0.01f, 0f);
+            
+            // 인스펙터 스크린샷 값 반영 (X: -90, Y: 0, Z: -180)
+            dirtyRug.transform.localRotation = Quaternion.Euler(-90f, 0f, -180f);
+            dirtyRug.transform.localScale = Vector3.one;
+        }
+        else
+        {
+            // 예외 처리 (블록아웃)
+            MakeBlockout(elLobby.transform, "Dirty_Rug", PrimitiveType.Cube, new Vector3(0f, 0.01f, 0f), new Vector3(3f, 0.02f, 2f), Color.gray);
+        }
+        // Broken_Janitor_Cart 청소 카트 로드 (elLobby)
+        GameObject janitorCartPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(JanitorCartPrefabPath);
+        if (janitorCartPrefab != null)
+        {
+            GameObject janitorCart = PrefabUtility.InstantiatePrefab(janitorCartPrefab, elLobby.transform) as GameObject;
+            janitorCart.name = "Broken_Janitor_Cart";
+            
+            // 옆으로 기울어지면서 바닥에 묻히는 것을 방지하기 위해 Y값 조절 (바닥 파고듦 발생 시 0.2f~0.4f 사이로 수정)
+            janitorCart.transform.localPosition = new Vector3(0.5f, 0.34f, 0.8f);
+            
+            janitorCart.transform.localRotation = Quaternion.Euler(-90f, 180f, 0f);
+            janitorCart.transform.localScale = Vector3.one;
+        }
+        else
+        {
+            // 예외 처리 (블록아웃)
+            GameObject janitorCart = MakeBlockout(elLobby.transform, "Broken_Janitor_Cart", PrimitiveType.Cube, new Vector3(1.5f, 0.4f, 1f), new Vector3(0.8f, 1.2f, 0.6f), Color.white);
+            janitorCart.transform.localRotation = Quaternion.Euler(0f, 0f, 75f);
+        }
+        // Spilled_Liquid 쏟아진 액자/액체 로드 (elLobby)
+        GameObject spilledLiquidPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SpilledLiquidPrefabPath);
+        if (spilledLiquidPrefab != null)
+        {
+            GameObject spilledLiquid = PrefabUtility.InstantiatePrefab(spilledLiquidPrefab, elLobby.transform) as GameObject;
+            spilledLiquid.name = "Spilled_Liquid";
+            
+            spilledLiquid.transform.localPosition = new Vector3(1.2f, 0f, 1.3f);
+            
+            // 인스펙터 스크린샷 값 반영 (Rotation 0, 0, 0)
+            spilledLiquid.transform.localRotation = Quaternion.identity;
+            spilledLiquid.transform.localScale = new Vector3(2f, 1.5f, 1.5f);
+        }
+        else
+        {
+            // 예외 처리 (블록아웃)
+            MakeBlockout(elLobby.transform, "Spilled_Liquid", PrimitiveType.Cube, new Vector3(1.2f, 0.01f, 0.5f), new Vector3(2f, 0.02f, 1.5f), Color.black);
+        }
         
+        // Torn_Carpet 찢어진 카펫 그룹 생성
         GameObject carpet3F = new GameObject("Torn_Carpet");
         carpet3F.transform.SetParent(root.transform, false);
-        MakeBlockout(carpet3F.transform, "Carpet_Piece_1", PrimitiveType.Cube, new Vector3(5f, 0.01f, 2f), new Vector3(4f, 0.02f, 1.8f), new Color(0.3f, 0.1f, 0.1f));
-        GameObject piece2 = MakeBlockout(carpet3F.transform, "Carpet_Piece_2", PrimitiveType.Cube, new Vector3(10f, 0.01f, 2.1f), new Vector3(3.5f, 0.02f, 1.5f), new Color(0.2f, 0.05f, 0.05f));
-        piece2.transform.localRotation = Quaternion.Euler(0, 5f, 0);
-        MakeBlockout(carpet3F.transform, "Carpet_Piece_3", PrimitiveType.Cube, new Vector3(15f, 0.01f, 1.9f), new Vector3(4.5f, 0.02f, 1.7f), new Color(0.25f, 0.1f, 0.1f));
+
+        GameObject tornCarpetPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(TornCarpetPrefabPath);
+
+        if (tornCarpetPrefab != null)
+        {
+            // 조각 1
+            GameObject piece1 = PrefabUtility.InstantiatePrefab(tornCarpetPrefab, carpet3F.transform) as GameObject;
+            piece1.name = "Carpet_Piece_1";
+            piece1.transform.localPosition = new Vector3(5f, 0.05f, 2f);
+            piece1.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            piece1.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
+
+            // 조각 2 (기존 블록아웃의 Y축 5도 회전 반영)
+            GameObject piece2 = PrefabUtility.InstantiatePrefab(tornCarpetPrefab, carpet3F.transform) as GameObject;
+            piece2.name = "Carpet_Piece_2";
+            piece2.transform.localPosition = new Vector3(10f, 0.05f, 2.1f);
+            piece2.transform.localRotation = Quaternion.Euler(-90f, 5f, 0f);
+            piece2.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
+
+            // 조각 3
+            GameObject piece3 = PrefabUtility.InstantiatePrefab(tornCarpetPrefab, carpet3F.transform) as GameObject;
+            piece3.name = "Carpet_Piece_3";
+            piece3.transform.localPosition = new Vector3(15f, 0.05f, 1.9f);
+            piece3.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            piece3.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
+        }
+        else
+        {
+            // 예외 처리 (블록아웃)
+            MakeBlockout(carpet3F.transform, "Carpet_Piece_1", PrimitiveType.Cube, new Vector3(5f, 0.01f, 2f), new Vector3(4f, 0.02f, 1.8f), new Color(0.3f, 0.1f, 0.1f));
+            GameObject piece2 = MakeBlockout(carpet3F.transform, "Carpet_Piece_2", PrimitiveType.Cube, new Vector3(10f, 0.01f, 2.1f), new Vector3(3.5f, 0.02f, 1.5f), new Color(0.2f, 0.05f, 0.05f));
+            piece2.transform.localRotation = Quaternion.Euler(0f, 5f, 0f);
+            MakeBlockout(carpet3F.transform, "Carpet_Piece_3", PrimitiveType.Cube, new Vector3(15f, 0.01f, 1.9f), new Vector3(4.5f, 0.02f, 1.7f), new Color(0.25f, 0.1f, 0.1f));
+        }
 
         Color light3F = new Color(0.6f, 0.7f, 0.7f);
         AddWallSconce(root.transform, "Sconce_Room1", new Vector3(42.1f, 1.8f, 3.75f), 0f, light3F);
