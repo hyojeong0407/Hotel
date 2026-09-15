@@ -38,6 +38,15 @@ public static class CorridorDecorationBuilder
     private const string JanitorCartPrefabPath = "Assets/3rdParty/janitor/TwoShelfIndustrialCartonWheels_Joined.blend";
     private const string SpilledLiquidPrefabPath = "Assets/3rdParty/Spill/Splat_01.fbx";
     private const string TornCarpetPrefabPath = "Assets/3rdParty/Torn/Rug.blend";
+
+    // 💡 4층 새로 추가된 3D 에셋 경로 (프로젝트 내 위치에 맞춰 수정)
+    private const string RubblePilePrefabPath = "Assets/3rdParty/Pile/Debris_piles.fbx";
+    private const string BrokenBeamPrefabPath = "Assets/3rdParty/Beam/Planks.fbx";
+
+    // 💡 5층 새로 추가된 3D 에셋 경로 (프로젝트 내 위치에 맞춰 수정)
+    private const string AltarTablePrefabPath = "Assets/3rdParty/altar/AncientAltarFBX.fbx";
+    private const string GramophonePrefabPath = "Assets/3rdParty/antique-gramophone/source/Antique_Gramophone.fbx";
+    private const string BonePilePrefabPath = "Assets/3rdParty/generic-bones-pack/source/generic_bones_1.fbx";
     
     private const string LockerPrefabPath = "Assets/3rdParty/metal-cabinet/source/locker.fbx";
     private const string BreakTablePrefabPath = "Assets/3rdParty/Break_table/source/Carver_Coffee_Table.fbx";
@@ -511,15 +520,78 @@ public static class CorridorDecorationBuilder
         GameObject ruins = new GameObject("Ruins_Decor");
         ruins.transform.SetParent(root.transform, false);
 
-        MakeBlockout(ruins.transform, "Rubble_Pile_1", PrimitiveType.Cube, new Vector3(15f, 0.2f, 2f), new Vector3(3f, 0.4f, 2f), Color.gray);
-        MakeBlockout(ruins.transform, "Rubble_Pile_2", PrimitiveType.Cube, new Vector3(28f, 0.3f, 2.5f), new Vector3(2.5f, 0.6f, 1.8f), new Color(0.25f, 0.25f, 0.25f));
-        MakeBlockout(ruins.transform, "Broken_Beam", PrimitiveType.Cube, new Vector3(21f, 0.1f, 1.5f), new Vector3(4f, 0.3f, 0.8f), new Color(0.15f, 0.15f, 0.15f));
+        // Rubble_Pile 잔해 더미 로드 (ruins)
+        GameObject rubblePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(RubblePilePrefabPath);
 
+        if (rubblePrefab != null)
+        {
+            // 잔해 더미 1
+            GameObject rubble1 = PrefabUtility.InstantiatePrefab(rubblePrefab, ruins.transform) as GameObject;
+            rubble1.name = "Rubble_Pile_1";
+            rubble1.transform.localPosition = new Vector3(15f, 0.4f, 2f);
+            rubble1.transform.localRotation = Quaternion.identity;
+            rubble1.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
+
+            // 잔해 더미 2
+            GameObject rubble2 = PrefabUtility.InstantiatePrefab(rubblePrefab, ruins.transform) as GameObject;
+            rubble2.name = "Rubble_Pile_2";
+            rubble2.transform.localPosition = new Vector3(28f, 0.4f, 2f);
+            rubble2.transform.localRotation = Quaternion.identity;
+            rubble2.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
+        }
+        else
+        {
+            // 예외 처리 (블록아웃)
+            MakeBlockout(ruins.transform, "Rubble_Pile_1", PrimitiveType.Cube, new Vector3(15f, 0.2f, 2f), new Vector3(3f, 0.4f, 2f), Color.gray);
+            MakeBlockout(ruins.transform, "Rubble_Pile_2", PrimitiveType.Cube, new Vector3(28f, 0.3f, 2.5f), new Vector3(2.5f, 0.6f, 1.8f), new Color(0.25f, 0.25f, 0.25f));
+        }
+        // Broken_Beam 부서진 대들보/나무판자 로드 (ruins)
+        GameObject brokenBeamPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BrokenBeamPrefabPath);
+        if (brokenBeamPrefab != null)
+        {
+            GameObject brokenBeam = PrefabUtility.InstantiatePrefab(brokenBeamPrefab, ruins.transform) as GameObject;
+            brokenBeam.name = "Broken_Beam";
+            
+            // 위치 지정
+            brokenBeam.transform.localPosition = new Vector3(19f, 0.02f, 1.5f);
+            brokenBeam.transform.localRotation = Quaternion.Euler(-90, -90, 0f);
+            brokenBeam.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
+        }
+        else
+        {
+            // 예외 처리 (블록아웃)
+            MakeBlockout(ruins.transform, "Broken_Beam", PrimitiveType.Cube, new Vector3(21f, 0.1f, 1.5f), new Vector3(4f, 0.3f, 0.8f), new Color(0.15f, 0.15f, 0.15f));
+        }
+
+        // Torn_Ruined_Carpet 찢어진 카펫 그룹 생성 (ruins)
         GameObject ruinedCarpet = new GameObject("Torn_Ruined_Carpet");
         ruinedCarpet.transform.SetParent(ruins.transform, false);
-        MakeBlockout(ruinedCarpet.transform, "Mat_1", PrimitiveType.Cube, new Vector3(10f, 0.01f, 2f), new Vector3(3f, 0.02f, 1.5f), new Color(0.1f, 0.05f, 0.05f));
-        GameObject mat2 = MakeBlockout(ruinedCarpet.transform, "Mat_2", PrimitiveType.Cube, new Vector3(25f, 0.01f, 2.2f), new Vector3(2f, 0.02f, 1.2f), new Color(0.08f, 0.04f, 0.04f));
-        mat2.transform.localRotation = Quaternion.Euler(0, 25f, 0);
+
+        GameObject tornCarpetPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(TornCarpetPrefabPath);
+
+        if (tornCarpetPrefab != null)
+        {
+            // Mat_1 생성
+            GameObject mat1 = PrefabUtility.InstantiatePrefab(tornCarpetPrefab, ruinedCarpet.transform) as GameObject;
+            mat1.name = "Mat_1";
+            mat1.transform.localPosition = new Vector3(10f, 0.01f, 2f);
+            mat1.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            mat1.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
+
+            // Mat_2 생성 (기존 블록아웃의 Y축 25도 회전 반영)
+            GameObject mat2 = PrefabUtility.InstantiatePrefab(tornCarpetPrefab, ruinedCarpet.transform) as GameObject;
+            mat2.name = "Mat_2";
+            mat2.transform.localPosition = new Vector3(25f, 0.01f, 2.2f);
+            mat2.transform.localRotation = Quaternion.Euler(-90f, 25f, 0f);
+            mat2.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
+        }
+        else
+        {
+            // 예외 처리 (블록아웃)
+            MakeBlockout(ruinedCarpet.transform, "Mat_1", PrimitiveType.Cube, new Vector3(10f, 0.01f, 2f), new Vector3(3f, 0.02f, 1.5f), new Color(0.1f, 0.05f, 0.05f));
+            GameObject mat2 = MakeBlockout(ruinedCarpet.transform, "Mat_2", PrimitiveType.Cube, new Vector3(25f, 0.01f, 2.2f), new Vector3(2f, 0.02f, 1.2f), new Color(0.08f, 0.04f, 0.04f));
+            mat2.transform.localRotation = Quaternion.Euler(0f, 25f, 0f);
+        }
 
         Color light4F = new Color(0.3f, 0.35f, 0.4f);
         AddLight(root.transform, new Vector3(20f, 2.4f, 2f), light4F, 1.5f, 6f);
@@ -541,11 +613,62 @@ public static class CorridorDecorationBuilder
         northGap.transform.SetParent(root.transform, false);
         northGap.transform.localPosition = new Vector3(NorthGapCenter_X, 0f, NorthGapCenter_Z);
 
-        MakeBlockout(northGap.transform, "Altar_Table", PrimitiveType.Cube, new Vector3(0, 0.5f, 2f), new Vector3(4f, 1f, 1.5f), Color.white);
-        MakeBlockout(northGap.transform, "Phonograph_Base", PrimitiveType.Cube, new Vector3(0, 1.2f, 2f), new Vector3(0.6f, 0.4f, 0.6f), Color.white);
-        GameObject horn = MakeBlockout(northGap.transform, "Phonograph_Horn", PrimitiveType.Cylinder, new Vector3(0, 1.6f, 1.8f), new Vector3(0.4f, 0.4f, 0.4f), Color.white);
-        horn.transform.localRotation = Quaternion.Euler(45f, 0, 0);
-        MakeBlockout(northGap.transform, "Bone_Pile", PrimitiveType.Sphere, new Vector3(2f, 0.3f, 2.5f), new Vector3(1.2f, 0.6f, 1f), Color.white);
+        // Altar_Table 제단 테이블 로드 (northGap)
+        GameObject altarPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(AltarTablePrefabPath);
+        if (altarPrefab != null)
+        {
+            GameObject altarTable = PrefabUtility.InstantiatePrefab(altarPrefab, northGap.transform) as GameObject;
+            altarTable.name = "Altar_Table";
+            
+            // 모델 피벗이 바닥 기준이므로 Y값을 0f으로 맞춤 (공중에 뜨거나 바닥에 묻히면 Y값 조절)
+            altarTable.transform.localPosition = new Vector3(0f, 0f, 2f);
+            
+            // 인스펙터 스크린샷 값 반영 (X: -90, Y: 0, Z: 0)
+            altarTable.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            altarTable.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
+        }
+        else
+        {
+            // 예외 처리 (블록아웃)
+            MakeBlockout(northGap.transform, "Altar_Table", PrimitiveType.Cube, new Vector3(0f, 0.5f, 2f), new Vector3(4f, 1f, 1.5f), Color.white);
+        }
+        // Phonograph 축음기 로드 (northGap)
+        GameObject gramophonePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(GramophonePrefabPath);
+        if (gramophonePrefab != null)
+        {
+            GameObject gramophone = PrefabUtility.InstantiatePrefab(gramophonePrefab, northGap.transform) as GameObject;
+            gramophone.name = "Phonograph";
+            
+            gramophone.transform.localPosition = new Vector3(0.5f, 0.5f, 2.5f);
+            
+            // 인스펙터 스크린샷 값 반영 (Rotation Y: 180)
+            gramophone.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            gramophone.transform.localScale = Vector3.one;
+        }
+        else
+        {
+            // 예외 처리 (블록아웃)
+            MakeBlockout(northGap.transform, "Phonograph_Base", PrimitiveType.Cube, new Vector3(0f, 1.2f, 2f), new Vector3(0.6f, 0.4f, 0.6f), Color.white);
+            GameObject horn = MakeBlockout(northGap.transform, "Phonograph_Horn", PrimitiveType.Cylinder, new Vector3(0f, 1.6f, 1.8f), new Vector3(0.4f, 0.4f, 0.4f), Color.white);
+            horn.transform.localRotation = Quaternion.Euler(45f, 0f, 0f);
+        }
+        // Bone_Pile 뼈다귀 더미 로드 (northGap)
+        GameObject bonePilePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BonePilePrefabPath);
+        if (bonePilePrefab != null)
+        {
+            GameObject bonePile = PrefabUtility.InstantiatePrefab(bonePilePrefab, northGap.transform) as GameObject;
+            bonePile.name = "Bone_Pile";
+            
+            // 모델 중심점이 바닥에 맞춰져 있으므로 Y값을 0f으로 세팅 (바닥에 묻히거나 뜨면 미세 조절)
+            bonePile.transform.localPosition = new Vector3(2f, 0.05f, 2.5f);
+            bonePile.transform.localRotation = Quaternion.Euler(90f, -90f, 0f);;
+            bonePile.transform.localScale = new Vector3(1.2f, 1.2f, 1.2f);
+        }
+        else
+        {
+            // 예외 처리 (블록아웃)
+            MakeBlockout(northGap.transform, "Bone_Pile", PrimitiveType.Sphere, new Vector3(2f, 0.3f, 2.5f), new Vector3(1.2f, 0.6f, 1f), Color.white);
+        }
 
         GameObject westVoid = new GameObject("West_Void_Decor");
         westVoid.transform.SetParent(root.transform, false);
