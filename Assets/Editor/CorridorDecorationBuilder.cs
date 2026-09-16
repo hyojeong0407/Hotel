@@ -47,6 +47,10 @@ public static class CorridorDecorationBuilder
     private const string AltarTablePrefabPath = "Assets/3rdParty/altar/AncientAltarFBX.fbx";
     private const string GramophonePrefabPath = "Assets/3rdParty/antique-gramophone/source/Antique_Gramophone.fbx";
     private const string BonePilePrefabPath = "Assets/3rdParty/generic-bones-pack/source/generic_bones_1.fbx";
+    private const string TapestryPrefabPath = "Assets/3rdParty/tapestry/source/MT_E_3599_Makatka_FINAL.obj";
+    private const string BrazierPrefabPath = "Assets/3rdParty/Brazier/FIREPLACE.fbx";
+    private const string CandlePrefabPath = "Assets/3rdParty/Candle/candle_set.blend";
+    private const string SuitcasePrefabPath = "Assets/3rdParty/suitcase/suitcase01.fbx";
     
     private const string LockerPrefabPath = "Assets/3rdParty/metal-cabinet/source/locker.fbx";
     private const string BreakTablePrefabPath = "Assets/3rdParty/Break_table/source/Carver_Coffee_Table.fbx";
@@ -674,20 +678,115 @@ public static class CorridorDecorationBuilder
         westVoid.transform.SetParent(root.transform, false);
         westVoid.transform.localPosition = new Vector3(WestVoidCenter_X, 0f, WestVoidCenter_Z);
 
-        MakeBlockout(westVoid.transform, "Tapestry", PrimitiveType.Cube, new Vector3(0, 1.5f, -3.9f), new Vector3(5f, 2f, 0.1f), Color.white);
+        // Tapestry 태피스트리 로드 (westVoid)
+        GameObject tapestryPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(TapestryPrefabPath);
+        if (tapestryPrefab != null)
+        {
+            GameObject tapestry = PrefabUtility.InstantiatePrefab(tapestryPrefab, westVoid.transform) as GameObject;
+            tapestry.name = "Tapestry";
+            
+            // 기존 블록아웃 위치 적용 (벽면 위치)
+            tapestry.transform.localPosition = new Vector3(0f, 1.25f, -3.9f);
+            
+            // 인스펙터 스크린샷 값 반영 (Rotation 0, 0, 0)
+            // ※ 모델이 눕혀져 있어 벽에 세워야 한다면 Quaternion.Euler(90f, 0f, 0f)로 회전값을 변경하세요.
+            tapestry.transform.localRotation = Quaternion.identity;
+            tapestry.transform.localScale = new Vector3(0.35f, 0.35f, 0.35f);
+        }
+        else
+        {
+            // 예외 처리 (블록아웃)
+            MakeBlockout(westVoid.transform, "Tapestry", PrimitiveType.Cube, new Vector3(0f, 1.5f, -3.9f), new Vector3(5f, 2f, 0.1f), Color.white);
+        }
         
-        MakeBlockout(westVoid.transform, "Brazier", PrimitiveType.Cylinder, new Vector3(0, 0.5f, -2f), new Vector3(1f, 0.5f, 1f), Color.white);
-        MakeBlockout(westVoid.transform, "Candle_1", PrimitiveType.Cylinder, new Vector3(1f, 0.1f, -1.5f), new Vector3(0.1f, 0.1f, 0.1f), Color.white);
-        MakeBlockout(westVoid.transform, "Candle_2", PrimitiveType.Cylinder, new Vector3(-0.8f, 0.1f, -2.2f), new Vector3(0.1f, 0.1f, 0.1f), Color.white);
-        MakeBlockout(westVoid.transform, "Candle_3", PrimitiveType.Cylinder, new Vector3(0.5f, 0.05f, -2.8f), new Vector3(0.1f, 0.05f, 0.1f), Color.white);
-        MakeBlockout(westVoid.transform, "Candle_4", PrimitiveType.Cylinder, new Vector3(-0.2f, 0.15f, -1.8f), new Vector3(0.1f, 0.15f, 0.1f), Color.white);
+        // Brazier 화로 로드 (westVoid)
+        GameObject brazierPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BrazierPrefabPath);
+        if (brazierPrefab != null)
+        {
+            GameObject brazier = PrefabUtility.InstantiatePrefab(brazierPrefab, westVoid.transform) as GameObject;
+            brazier.name = "Brazier";
+            
+
+            brazier.transform.localPosition = new Vector3(0f, 0.2f, -2f);
+            
+            // 인스펙터 스크린샷 값 반영 (X: -90, Y: 0, Z: 0)
+            brazier.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            brazier.transform.localScale = Vector3.one;
+        }
+        else
+        {
+            // 예외 처리 (블록아웃)
+            MakeBlockout(westVoid.transform, "Brazier", PrimitiveType.Cylinder, new Vector3(0f, 0.5f, -2f), new Vector3(1f, 0.5f, 1f), Color.white);
+        }
+        // Candle 세트 로드 (westVoid)
+        GameObject candlePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(CandlePrefabPath);
+
+        if (candlePrefab != null)
+        {
+            Vector3[] positions = new Vector3[]
+            {
+                new Vector3(1f, 0f, -1.5f),
+                new Vector3(-0.8f, 0f, -2.2f),
+                new Vector3(0.5f, 0f, -2.8f),
+                new Vector3(-0.2f, 0f, -3f)
+            };
+
+            // 위치별로 보여줄 자식 양초 인덱스 (0: 빨간색, 1: 검은색, 2: 보라색)
+            int[] candleTypes = new int[] { 0, 1, 2, 1 };
+
+            for (int i = 0; i < positions.Length; i++)
+            {
+                GameObject candle = PrefabUtility.InstantiatePrefab(candlePrefab, westVoid.transform) as GameObject;
+                candle.name = $"Candle_{i + 1}";
+                candle.transform.localPosition = positions[i];
+                candle.transform.localRotation = Quaternion.identity;
+                candle.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
+
+                // 선택한 인덱스의 자식 양초만 켜고 나머지는 비활성화
+                for (int j = 0; j < candle.transform.childCount; j++)
+                {
+                    candle.transform.GetChild(j).gameObject.SetActive(j == candleTypes[i]);
+                }
+            }
+        }
+        else
+        {
+            // 예외 처리 (블록아웃)
+            MakeBlockout(westVoid.transform, "Candle_1", PrimitiveType.Cylinder, new Vector3(1f, 0.1f, -1.5f), new Vector3(0.1f, 0.1f, 0.1f), Color.white);
+            MakeBlockout(westVoid.transform, "Candle_2", PrimitiveType.Cylinder, new Vector3(-0.8f, 0.1f, -2.2f), new Vector3(0.1f, 0.1f, 0.1f), Color.white);
+            MakeBlockout(westVoid.transform, "Candle_3", PrimitiveType.Cylinder, new Vector3(0.5f, 0.05f, -2.8f), new Vector3(0.1f, 0.05f, 0.1f), Color.white);
+            MakeBlockout(westVoid.transform, "Candle_4", PrimitiveType.Cylinder, new Vector3(-0.2f, 0.15f, -3f), new Vector3(0.1f, 0.15f, 0.1f), Color.white);
+        }
 
         GameObject elLobby = new GameObject("EL_Lobby_Decor");
         elLobby.transform.SetParent(root.transform, false);
         elLobby.transform.localPosition = new Vector3(ElLobbyCenter_X, 0f, ElLobbyCenter_Z);
 
-        MakeBlockout(elLobby.transform, "Chained_Trunk_1", PrimitiveType.Cube, new Vector3(-1.5f, 0.3f, -1.5f), new Vector3(1f, 0.6f, 0.8f), Color.white);
-        MakeBlockout(elLobby.transform, "Chained_Trunk_2", PrimitiveType.Cube, new Vector3(-1.4f, 0.8f, -1.6f), new Vector3(0.8f, 0.4f, 0.6f), Color.white);
+        // Chained_Trunk 여행가방 로드 (elLobby)
+        GameObject trunkPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SuitcasePrefabPath);
+
+        if (trunkPrefab != null)
+        {
+            // Trunk 1 (아래쪽 가방)
+            GameObject trunk1 = PrefabUtility.InstantiatePrefab(trunkPrefab, elLobby.transform) as GameObject;
+            trunk1.name = "Chained_Trunk_1";
+            trunk1.transform.localPosition = new Vector3(-1.5f, 0f, -1.5f);
+            trunk1.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            trunk1.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f); // 스크린샷의 0.5 스케일 반영
+
+            // Trunk 2 (위쪽 포개진 가방)
+            GameObject trunk2 = PrefabUtility.InstantiatePrefab(trunkPrefab, elLobby.transform) as GameObject;
+            trunk2.name = "Chained_Trunk_2";
+            trunk2.transform.localPosition = new Vector3(-1.4f, 0.35f, -1.6f); // Trunk 1 위에 얹어지도록 Y축 높이 조절
+            trunk2.transform.localRotation = Quaternion.Euler(-90f, 15f, 0f); // 자연스러움을 위해 약간 틀어줌
+            trunk2.transform.localScale = new Vector3(0.45f, 0.45f, 0.45f);
+        }
+        else
+        {
+            // 예외 처리 (블록아웃)
+            MakeBlockout(elLobby.transform, "Chained_Trunk_1", PrimitiveType.Cube, new Vector3(-1.5f, 0.3f, -1.5f), new Vector3(1f, 0.6f, 0.8f), Color.white);
+            MakeBlockout(elLobby.transform, "Chained_Trunk_2", PrimitiveType.Cube, new Vector3(-1.4f, 0.8f, -1.6f), new Vector3(0.8f, 0.4f, 0.6f), Color.white);
+        }
 
         GameObject carpet5F = new GameObject("Bloody_Carpet");
         carpet5F.transform.SetParent(root.transform, false);
