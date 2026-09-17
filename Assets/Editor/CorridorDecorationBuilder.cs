@@ -51,6 +51,7 @@ public static class CorridorDecorationBuilder
     private const string BrazierPrefabPath = "Assets/3rdParty/Brazier/FIREPLACE.fbx";
     private const string CandlePrefabPath = "Assets/3rdParty/Candle/candle_set.blend";
     private const string SuitcasePrefabPath = "Assets/3rdParty/suitcase/suitcase01.fbx";
+    private const string BloodPrefabPath = "Assets/3rdParty/blood/prefab/blood4.prefab";
     
     private const string LockerPrefabPath = "Assets/3rdParty/metal-cabinet/source/locker.fbx";
     private const string BreakTablePrefabPath = "Assets/3rdParty/Break_table/source/Carver_Coffee_Table.fbx";
@@ -469,21 +470,21 @@ public static class CorridorDecorationBuilder
             // 조각 1
             GameObject piece1 = PrefabUtility.InstantiatePrefab(tornCarpetPrefab, carpet3F.transform) as GameObject;
             piece1.name = "Carpet_Piece_1";
-            piece1.transform.localPosition = new Vector3(5f, 0.05f, 2f);
+            piece1.transform.localPosition = new Vector3(5f, 0.01f, 2f);
             piece1.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
             piece1.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
 
             // 조각 2 (기존 블록아웃의 Y축 5도 회전 반영)
             GameObject piece2 = PrefabUtility.InstantiatePrefab(tornCarpetPrefab, carpet3F.transform) as GameObject;
             piece2.name = "Carpet_Piece_2";
-            piece2.transform.localPosition = new Vector3(10f, 0.05f, 2.1f);
+            piece2.transform.localPosition = new Vector3(10f, 0.01f, 2.1f);
             piece2.transform.localRotation = Quaternion.Euler(-90f, 5f, 0f);
             piece2.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
 
             // 조각 3
             GameObject piece3 = PrefabUtility.InstantiatePrefab(tornCarpetPrefab, carpet3F.transform) as GameObject;
             piece3.name = "Carpet_Piece_3";
-            piece3.transform.localPosition = new Vector3(15f, 0.05f, 1.9f);
+            piece3.transform.localPosition = new Vector3(15f, 0.01f, 1.9f);
             piece3.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
             piece3.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
         }
@@ -788,10 +789,47 @@ public static class CorridorDecorationBuilder
             MakeBlockout(elLobby.transform, "Chained_Trunk_2", PrimitiveType.Cube, new Vector3(-1.4f, 0.8f, -1.6f), new Vector3(0.8f, 0.4f, 0.6f), Color.white);
         }
 
+        // Bloody_Carpet 피 묻은 카펫 그룹 생성 (root)
         GameObject carpet5F = new GameObject("Bloody_Carpet");
         carpet5F.transform.SetParent(root.transform, false);
-        MakeBlockout(carpet5F.transform, "Main_Drag_Mark", PrimitiveType.Cube, new Vector3(11f, 0.01f, 2f), new Vector3(14f, 0.02f, 1.2f), new Color(0.3f, 0f, 0f));
-        MakeBlockout(carpet5F.transform, "Altar_Drag_Mark", PrimitiveType.Cube, new Vector3(18f, 0.01f, 5f), new Vector3(1.2f, 0.02f, 6f), new Color(0.3f, 0f, 0f));
+
+        GameObject rugPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(DirtyRugPrefabPath);
+        GameObject bloodPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BloodPrefabPath);
+
+        if (rugPrefab != null && bloodPrefab != null)
+        {
+            // --- 1. Main_Drag_Mark (메인 러그 + 피 자국) ---
+            GameObject mainRug = PrefabUtility.InstantiatePrefab(rugPrefab, carpet5F.transform) as GameObject;
+            mainRug.name = "Main_Rug";
+            mainRug.transform.localPosition = new Vector3(11f, 0f, 2f);
+            mainRug.transform.localRotation = Quaternion.Euler(-90f, 90f, 0f);
+            mainRug.transform.localScale = new Vector3(1f, 6.5f, 1f);
+
+            GameObject mainBlood = PrefabUtility.InstantiatePrefab(bloodPrefab, carpet5F.transform) as GameObject;
+            mainBlood.name = "Main_Drag_Mark";
+            mainBlood.transform.localPosition = new Vector3(11f, 0.02f, 2f);
+            mainBlood.transform.localRotation = Quaternion.identity;
+            mainBlood.transform.localScale = new Vector3(1.2f, 1f, 0.1f);
+
+            // --- 2. Altar_Drag_Mark (제단 러그 + 피 자국) ---
+            GameObject altarRug = PrefabUtility.InstantiatePrefab(rugPrefab, carpet5F.transform) as GameObject;
+            altarRug.name = "Altar_Rug";
+            altarRug.transform.localPosition = new Vector3(19f, 0f, 5f);
+            altarRug.transform.localRotation = Quaternion.Euler(-90f, 90f, 0f);
+            altarRug.transform.localScale = new Vector3(5f, 1f, 1f);
+
+            GameObject altarBlood = PrefabUtility.InstantiatePrefab(bloodPrefab, carpet5F.transform) as GameObject;
+            altarBlood.name = "Altar_Drag_Mark";
+            altarBlood.transform.localPosition = new Vector3(19f, 0.02f, 5f);
+            altarBlood.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+            altarBlood.transform.localScale = new Vector3(0.7f, 1f, 0.1f);
+        }
+        else
+        {
+            // 예외 처리 (블록아웃)
+            MakeBlockout(carpet5F.transform, "Main_Drag_Mark", PrimitiveType.Cube, new Vector3(11f, 0.01f, 2f), new Vector3(14f, 0.02f, 1.2f), new Color(0.3f, 0f, 0f));
+            MakeBlockout(carpet5F.transform, "Altar_Drag_Mark", PrimitiveType.Cube, new Vector3(18f, 0.01f, 5f), new Vector3(1.2f, 0.02f, 6f), new Color(0.3f, 0f, 0f));
+        }
 
         Color light5F = new Color(0.8f, 0.1f, 0.1f);
         AddWallSconce(root.transform, "Sconce_Room1", new Vector3(42.1f, 1.8f, 3.75f), 0f, light5F);
@@ -895,42 +933,56 @@ public static class CorridorDecorationBuilder
         l.shadows = LightShadows.Soft;
     }
 
-    // 경로 기반 웰컴매트 생성 함수 (FBX 모델 반영)
+    // 단일 층 기준 웰컴 매트 생성 함수 (Bloody_Mat 명칭일 경우 피 자국 추가)
     static void AddWelcomeMats(Transform parent, string matName, Color fallbackColor)
     {
         GameObject matGroup = new GameObject(matName + "_Group");
         matGroup.transform.SetParent(parent, false);
 
         GameObject matPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(WelcomeMatPrefabPath);
+        GameObject bloodPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(BloodPrefabPath);
 
-        Vector3[] matPositions = new Vector3[]
+        Vector3[] basePositions = new Vector3[]
         {
-            new Vector3(43.1f, 0.015f, 3.3f), // 101
-            new Vector3(32.9f, 0.015f, 3.3f), // 102
-            new Vector3(12.9f, 0.015f, 3.3f), // 103
-            new Vector3(35.3f, 0.015f, 0.7f), // 104
-            new Vector3(5.1f, 0.015f, 0.7f)   // 105
+            new Vector3(43.1f, 0.015f, 3.3f), // Room 01
+            new Vector3(32.9f, 0.015f, 3.3f), // Room 02
+            new Vector3(12.9f, 0.015f, 3.3f), // Room 03
+            new Vector3(35.3f, 0.015f, 0.7f), // Room 04
+            new Vector3(5.1f, 0.015f, 0.7f)   // Room 05
         };
 
-        string[] roomNumbers = new string[] { "101", "102", "103", "104", "105" };
+        bool isBloodyMat = matName.Contains("Bloody");
 
-        for (int i = 0; i < matPositions.Length; i++)
+        for (int i = 0; i < basePositions.Length; i++)
         {
-            string instanceName = $"{matName}_{roomNumbers[i]}";
+            string instanceName = $"{matName}_{i + 1}";
+            Vector3 spawnPosition = basePositions[i];
 
             if (matPrefab != null)
             {
-                GameObject mat = PrefabUtility.InstantiatePrefab(matPrefab, matGroup.transform) as GameObject;
-                mat.name = instanceName;
-                mat.transform.localPosition = matPositions[i];
-                
+                GameObject singleMatContainer = new GameObject(instanceName);
+                singleMatContainer.transform.SetParent(matGroup.transform, false);
+
+                // 1. 매트 모델 생성
+                GameObject mat = PrefabUtility.InstantiatePrefab(matPrefab, singleMatContainer.transform) as GameObject;
+                mat.name = "Mat_Model";
+                mat.transform.localPosition = spawnPosition;
                 mat.transform.localRotation = Quaternion.Euler(-90f, 90f, 0f);
                 mat.transform.localScale = new Vector3(8f, 7f, 10f);
+
+                // 2. Bloody_Mat일 경우에만 피 자국 생성
+                if (isBloodyMat && bloodPrefab != null)
+                {
+                    GameObject blood = PrefabUtility.InstantiatePrefab(bloodPrefab, singleMatContainer.transform) as GameObject;
+                    blood.name = "Blood_Decal";
+                    blood.transform.localPosition = spawnPosition + new Vector3(0f, 0.035f, 0f);
+                    blood.transform.localRotation = Quaternion.identity;
+                    blood.transform.localScale = new Vector3(0.1f, 0.2f, 0.1f);
+                }
             }
             else
             {
-                // FBX가 없을 경우 폴백 블록아웃 생성
-                MakeBlockout(matGroup.transform, instanceName, PrimitiveType.Cube, matPositions[i], new Vector3(1.2f, 0.02f, 0.8f), fallbackColor);
+                MakeBlockout(matGroup.transform, instanceName, PrimitiveType.Cube, spawnPosition, new Vector3(1.2f, 0.02f, 0.8f), fallbackColor);
             }
         }
     }
