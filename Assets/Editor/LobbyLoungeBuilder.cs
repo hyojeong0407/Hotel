@@ -70,11 +70,11 @@ public static class LobbyLoungeBuilder
             lampObj.name = "Floor_Lamp";
             
             // 소파 옆이나 라운지 구석자리에 배치
-            lampObj.transform.localPosition = new Vector3(2.2f, 0f, 1.5f);
+            lampObj.transform.localPosition = new Vector3(2.2f, 0.02f, 1.5f);
             // 회전값을 0, 0, 0 대신 X축을 -90(또는 90)으로 꺾어줍니다.
             lampObj.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
             // 크기가 너무 크거나 작으면 이 부분을 0.5f, 0.01f 등으로 조절
-            lampObj.transform.localScale = new Vector3(0.2f, 0.2f, 0.2f);
+            lampObj.transform.localScale = new Vector3(0.7f, 0.7f, 0.7f);
 
             // ★ 무드등 갓 내부 전구 위치에 불빛(Point Light) 달아주기
             GameObject lightObj = new GameObject("Lamp_Light");

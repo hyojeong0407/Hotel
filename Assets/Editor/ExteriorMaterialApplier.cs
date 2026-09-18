@@ -55,6 +55,26 @@ public class ExteriorMaterialApplier : MonoBehaviour
             
             foreach (var r in renderers)
             {
+
+                // ⭐️ 1. 프리팹 인스턴스인 경우 머티리얼 변경 제외
+                if (PrefabUtility.IsPartOfAnyPrefab(r.gameObject))
+                    continue;
+
+                // ⭐️ 2. 외부 3D 모델(FBX, OBJ, Blend 등) 메시는 머티리얼 변경 제외
+                MeshFilter mf = r.GetComponent<MeshFilter>();
+                if (mf != null && mf.sharedMesh != null)
+                {
+                    string assetPath = AssetDatabase.GetAssetPath(mf.sharedMesh);
+                    if (!string.IsNullOrEmpty(assetPath) && 
+                    (assetPath.EndsWith(".fbx", System.StringComparison.OrdinalIgnoreCase) || 
+                        assetPath.EndsWith(".obj", System.StringComparison.OrdinalIgnoreCase) ||
+                        assetPath.EndsWith(".blend", System.StringComparison.OrdinalIgnoreCase) ||
+                        assetPath.EndsWith(".prefab", System.StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
+                }
+                
                 string objName = r.gameObject.name.ToLower();
 
                 // ⭐️ 화장실 벽면(bath_wall_side, bath_wall_front)을 먼저 검사해서 도색 ⭐️

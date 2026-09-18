@@ -771,16 +771,16 @@ public static class CorridorDecorationBuilder
             // Trunk 1 (아래쪽 가방)
             GameObject trunk1 = PrefabUtility.InstantiatePrefab(trunkPrefab, elLobby.transform) as GameObject;
             trunk1.name = "Chained_Trunk_1";
-            trunk1.transform.localPosition = new Vector3(-1.5f, 0f, -1.5f);
+            trunk1.transform.localPosition = new Vector3(-0.5f, 0f, -1.3f);
             trunk1.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
             trunk1.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f); // 스크린샷의 0.5 스케일 반영
 
             // Trunk 2 (위쪽 포개진 가방)
             GameObject trunk2 = PrefabUtility.InstantiatePrefab(trunkPrefab, elLobby.transform) as GameObject;
             trunk2.name = "Chained_Trunk_2";
-            trunk2.transform.localPosition = new Vector3(-1.4f, 0.35f, -1.6f); // Trunk 1 위에 얹어지도록 Y축 높이 조절
+            trunk2.transform.localPosition = new Vector3(-0.5f, 0.8f, -1.3f); // Trunk 1 위에 얹어지도록 Y축 높이 조절
             trunk2.transform.localRotation = Quaternion.Euler(-90f, 15f, 0f); // 자연스러움을 위해 약간 틀어줌
-            trunk2.transform.localScale = new Vector3(0.45f, 0.45f, 0.45f);
+            trunk2.transform.localScale = new Vector3(0.4f, 0.4f, 0.4f);
         }
         else
         {

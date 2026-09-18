@@ -1,16 +1,20 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
 public static class HotelBlockoutBuilder
 {
+    // ==========================================
+    // 건물 치수 및 세팅 상수 정의
+    // ==========================================
     const float WallThickness = 0.2f;
     const float CeilingHeight = 2.5f;
 
-    const float RoomWidth = 10f;    // X, per-bay width (101/102/103/104/105 all share this)
-    const float RoomLength = 8f;    // Z, guest room depth
-    const float CorridorDepth = 4f; // Z, hallway between the north and south room rows
-    const float ELWidth = 4f;       // X, elevator lobby strip on the west end (square: ELWidth == CorridorDepth)
+    const float RoomWidth = 10f;    // X축 각 방 너비 (101~105 공유)
+    const float RoomLength = 8f;    // Z축 방 깊이
+    const float CorridorDepth = 4f; // Z축 복도 깊이
+    const float ELWidth = 4f;       // X축 엘리베이터 로비 너비
 
     const float BathWidth = 3f;
     const float BathLength = 3f;
@@ -24,7 +28,7 @@ public static class HotelBlockoutBuilder
     const float BedLegHeight = 0.2f;
 
     const float DoorWidth = 1.3f;
-    const float PassageWidth = 7f; // open walkway between Front_Desk and Staff_Room
+    const float PassageWidth = 7f;
 
     // Window in the guest room's back wall (opposite the door)
     const float WindowCenterX = 5f;
@@ -32,17 +36,15 @@ public static class HotelBlockoutBuilder
     const float WindowSillHeight = 1f;
     const float WindowHeight = 1.2f;
 
-    // Wardrobe — tucked into the corner next to the bathroom
-    const float WardrobeCenterX = 3.65f;
-    const float WardrobeCenterZ = 0.65f;
+    const float WardrobeCenterX = 3.8f;
+    const float WardrobeCenterZ = 0.5f;
     const float WardrobeSize = 1.3f;
     const float WardrobeHeight = 2f;
 
-    // Nightstand + phone — foot of the bed, by the window wall
-    const float NightstandCenterX = 0.5f;
+    const float NightstandCenterX = 0.6f;
     const float NightstandCenterZ = 7.5f;
     const float NightstandSize = 1f;
-    const float NightstandHeight = 0.5f;
+    const float NightstandHeight = 0.72f;
 
     // Seating: two armchairs with a side table between them, facing the TV
     const float SofaSize = 1.1f;
@@ -52,10 +54,9 @@ public static class HotelBlockoutBuilder
     const float SeatingCenterX = 6.95f;
     const float TableWidth = 0.7f;
     const float TableDepth = 0.6f;
-    const float TableHeight = 0.4f;
+    const float TableHeight = 0.43f;
     const float TableCenterZ = 5f;
 
-    // TV shelf, mounted on the east wall (벽 X:10 에 완벽하게 밀착되도록 9.825f 로 수정됨)
     const float TvCenterX = 9.825f;
     const float TvCenterZ = 5f;
     const float TvThickness = 0.35f;
@@ -63,7 +64,6 @@ public static class HotelBlockoutBuilder
     const float TvShelfHeight = 0.5f;
     const float TvShelfElevation = 1f;
 
-    // Bathroom fixtures
     const float TubCenterX = 1.5f;
     const float TubCenterZ = 0.65f;
     const float TubWidth = 2.6f;
@@ -83,21 +83,73 @@ public static class HotelBlockoutBuilder
     const float ToiletDepth = 0.8f;
     const float ToiletHeight = 0.4f;
 
-    [MenuItem("Tools/Hotel Blockout/Build Room 101")]
-    public static void BuildRoom101()
+    const float StoryHeight = CeilingHeight + WallThickness;
+
+    // 경로 정의
+    const string ArmchairSourcePath = "Assets/3rdParty/Furniture/Prefabs/Fotel3.prefab";
+    const string TvSourcePath = "Assets/3rdParty/70-tv/source/TV/TV.blend";
+    const string TvStandSourcePath = "Assets/3rdParty/tv-stand-roma-by-turri/source/Moble tv roma turri.fbx";
+    const string CarpetDir = "Assets/3rdParty/carpet/";
+    const string CarpetMatPath = "Assets/3rdParty/carpet/Carpet_Floor_Mat.mat";
+    static readonly Vector2 CarpetTiling = new Vector2(10f, 8f);
+
+    const string BedFbxPath = "Assets/3rdParty/bed/source/model.fbx";
+    const string BedTexDir = "Assets/3rdParty/bed/textures/";
+    const string BedMatPath = "Assets/3rdParty/bed/Bed_Mat.mat";
+    const string BedFbxMaterialName = "Material_0";
+    const string BedSourcePath = "Assets/3rdParty/bed/source/model.fbx";
+    const float BedModelScale = 1.5f;
+
+    static readonly Vector3 Room304TvStandLocalPos = new Vector3(9.725f, 0f, 5f);
+    static readonly Quaternion Room304TvStandLocalRot = Quaternion.identity;
+    static readonly Vector3 Room304TvLocalPos = new Vector3(9.825f, 0.4f, 5f);
+    static readonly Quaternion Room304TvLocalRot = new Quaternion(-0.5f, -0.5f, -0.5f, 0.5f);
+
+
+    // ==========================================
+    // 1. 메인 통합 빌드 버튼 (단 한번 클릭으로 일괄 실행)
+    // ==========================================
+    [MenuItem("Tools/Hotel Blockout/Build All Floors (1-5)")]
+    public static void BuildAllFloorsMenu()
     {
-        ClearExisting("Room_101");
-        var root = new GameObject("Room_101");
-        Undo.RegisterCreatedObjectUndo(root, "Build Room 101");
+        // Undo 작업 단일 그룹화 (Ctrl+Z 한 번에 전체 되돌리기 가능)
+        Undo.IncrementCurrentGroup();
+        int undoGroup = Undo.GetCurrentGroup();
+        Undo.SetCurrentGroupName("Build All Hotel Floors with Full Decor");
 
-        BuildRoomShell(root.transform, RoomWidth, RoomLength, includeBathroom: true, doorCenterX: RoomWidth - 1.1f, roomLabel: "101");
+        try
+        {
+            // [단계 1] 기본 층 골조 빌드 (1층~5층)
+            for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
+                BuildFloor(floorNumber);
 
-        FocusOn(root);
-        Debug.Log("Room_101 블록아웃 생성 완료: 4.5m x 6m, 천장 2.7m, 화장실 2.2m x 2.6m");
+            // [단계 2] 불필요한 임시 요소를 제거하고 실제 모델로 교체
+            RemoveTvPlaceholderBoxes();
+            ReplaceBedsWithModel();
+            WireBedTextures();
+            RemoveBedLightAndCamera();
+            RemoveRoomFloors();
+
+            // [단계 3] 304호 기준 레퍼런스 TV 및 스탠드 배치
+            AddTvAndStandFromRoom304Reference();
+
+            // [단계 4] 머티리얼, 카펫, 다크 럭셔리 색상 일괄 적용
+            ApplyCarpetToRoomFloors();
+            var floors = FindAllFloorRoots();
+            ApplyLuxuryFurnitureColors(floors);
+
+            Debug.Log("★ [Hotel Builder] 전체 층 빌드 및 후처리 통합 작업 완료!");
+        }
+        finally
+        {
+            Undo.CollapseUndoOperations(undoGroup);
+        }
     }
 
-    const float StoryHeight = CeilingHeight + WallThickness; // floor-to-floor vertical offset between stories
 
+    // ==========================================
+    // 2. 층별 개별 메뉴 (필요 시 선택적 실행)
+    // ==========================================
     [MenuItem("Tools/Hotel Blockout/Build Floor 1 (Full Layout)")]
     public static void BuildFloor1Menu() => BuildFloor(1);
 
@@ -113,53 +165,90 @@ public static class HotelBlockoutBuilder
     [MenuItem("Tools/Hotel Blockout/Build Floor 5")]
     public static void BuildFloor5Menu() => BuildFloor(5);
 
-    [MenuItem("Tools/Hotel Blockout/Build All Floors (1-5)")]
-    public static void BuildAllFloorsMenu()
-    {
-        for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
-            BuildFloor(floorNumber);
-    }
 
+    // ==========================================
+    // 3. 커맨드라인 / 배치 모드 전용 실행 엔트리
+    // ==========================================
     public static void BuildAllFloorsAndSaveBatch()
     {
         var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
         BuildAllFloorsMenu();
-        var floors = FindAllFloorRoots();
-        Selection.objects = floors;
-        
-        EditorApplication.ExecuteMenuItem("Tools/Hotel Blockout/Apply Dark Materials (Eye Comfort)");
-        
-        ApplyLuxuryFurnitureColors(floors);
         EditorSceneManager.SaveScene(scene);
         Debug.Log("BuildAllFloorsAndSaveBatch 완료: SampleScene에 저장됨.");
     }
 
-    static GameObject[] FindAllFloorRoots()
+    public static void AddTvAndStandFromRoom304ReferenceAndSaveBatch()
     {
-        var targets = new System.Collections.Generic.List<GameObject>();
-        for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
-        {
-            var go = GameObject.Find($"Floor{floorNumber}_Hotel");
-            if (go != null)
-                targets.Add(go);
-        }
-        return targets.ToArray();
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+        AddTvAndStandFromRoom304Reference();
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log("AddTvAndStandFromRoom304ReferenceAndSaveBatch 완료.");
     }
 
+    public static void RemoveTvPlaceholderBoxesAndSaveBatch()
+    {
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+        RemoveTvPlaceholderBoxes();
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log("RemoveTvPlaceholderBoxesAndSaveBatch 완료.");
+    }
+
+    public static void ApplyCarpetToRoomFloorsAndSaveBatch()
+    {
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+        ApplyCarpetToRoomFloors();
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log("ApplyCarpetToRoomFloorsAndSaveBatch 완료.");
+    }
+
+    public static void RemoveRoomFloorsAndSaveBatch()
+    {
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+        RemoveRoomFloors();
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log("RemoveRoomFloorsAndSaveBatch 완료.");
+    }
+
+    public static void WireBedTexturesAndSaveBatch()
+    {
+        WireBedTextures();
+        Debug.Log("WireBedTexturesAndSaveBatch 완료.");
+    }
+
+    public static void ReplaceBedsWithModelAndSaveBatch()
+    {
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+        ReplaceBedsWithModel();
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log("ReplaceBedsWithModelAndSaveBatch 완료.");
+    }
+
+    public static void RemoveBedLightAndCameraAndSaveBatch()
+    {
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
+        RemoveBedLightAndCamera();
+        EditorSceneManager.SaveScene(scene);
+        Debug.Log("RemoveBedLightAndCameraAndSaveBatch 완료.");
+    }
+
+    // ==========================================
+    // 4. 머티리얼 및 다크모드/색상 적용 로직
+    // ==========================================
     [MenuItem("Tools/Hotel Blockout/Apply Luxury Furniture Colors")]
     public static void ApplyLuxuryFurnitureColorsMenu()
     {
-        var targets = Selection.gameObjects;
+        // ⭐️ 선택 상태와 상관없이 무조건 1~5층 전체 건물 오브젝트를 타겟팅합니다.
+        var targets = FindAllFloorRoots(); 
         if (targets.Length == 0)
         {
-            Debug.LogWarning("먼저 색을 칠할 오브젝트들을 하이어라키에서 선택해 주세요!");
-            return;
+            targets = Selection.gameObjects;
         }
         ApplyLuxuryFurnitureColors(targets);
     }
 
     static void ApplyLuxuryFurnitureColors(GameObject[] targets)
     {
+        // 1. 머티리얼 및 텍스처 정의
         Texture2D woodTex = GenerateWoodTexture(new Color(0.22f, 0.11f, 0.06f));
         Texture2D doorWoodTex = GenerateWoodTexture(new Color(0.25f, 0.14f, 0.07f));
         Texture2D velvetTex = GenerateFabricTexture(new Color(0.42f, 0.06f, 0.09f));
@@ -167,7 +256,7 @@ public static class HotelBlockoutBuilder
         Texture2D ceramicTex = GenerateCeramicTexture(new Color(0.16f, 0.16f, 0.17f));
         Texture2D brassTex = GenerateMetalTexture(new Color(0.55f, 0.42f, 0.15f));
         Texture2D vinylTex = GenerateFabricTexture(new Color(0.1f, 0.11f, 0.13f));
-        Texture2D marbleTex = GenerateMarbleTexture(new Color(0.08f, 0.08f, 0.09f)); // ★ 바닥용 고급 어두운 대리석 텍스처 생성
+        Texture2D marbleTex = GenerateMarbleTexture(new Color(0.08f, 0.08f, 0.09f));
 
         Material velvetRed = NewStandardMaterial(new Color(0.42f, 0.06f, 0.09f), 0.15f, 0f, velvetTex, new Vector2(4f, 4f));
         Material mahogany = NewStandardMaterial(new Color(0.22f, 0.11f, 0.06f), 0.3f, 0f, woodTex, new Vector2(2f, 3f));
@@ -179,15 +268,19 @@ public static class HotelBlockoutBuilder
         Material ceramic = NewStandardMaterial(new Color(0.16f, 0.16f, 0.17f), 0.45f, 0f, ceramicTex, new Vector2(3f, 3f));
         Material windowGlass = NewStandardMaterial(new Color(0.5f, 0.62f, 0.58f), 0.85f, 0.1f);     
         Material vinylCurtain = NewStandardMaterial(new Color(0.1f, 0.11f, 0.13f), 0.35f, 0f, vinylTex, new Vector2(2f, 4f));
-        Material darkMarble = NewStandardMaterial(new Color(0.08f, 0.08f, 0.09f), 0.7f, 0.1f, marbleTex, new Vector2(8f, 8f)); // ★ 매끄러운 럭셔리 대리석 머티리얼
+        Material darkMarble = NewStandardMaterial(new Color(0.08f, 0.08f, 0.09f), 0.7f, 0.1f, marbleTex, new Vector2(8f, 8f));
+        
+        // ⭐️ 요청하신 HEX #33261F / RGB(51, 38, 31) 갈색 머티리얼
+        Material darkWall = NewStandardMaterial(new Color(51f / 255f, 38f / 255f, 31f / 255f), 0.0f, 0f);
+        Material darkCeiling = NewStandardMaterial(new Color(0.06f, 0.06f, 0.07f), 0.05f, 0f);
         Material fontMaterial = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf").material; 
 
-        var redVelvet = new System.Collections.Generic.HashSet<string> { "seat", "backrest", "armrest_near", "armrest_far", "mattress", "blanket_fold" };
-        var gold = new System.Collections.Generic.HashSet<string> { "pillow_1", "pillow_2", "shade" };
-        var wood = new System.Collections.Generic.HashSet<string> { "cabinet_body", "door_left", "door_right", "cornice", "plinth", "body", "drawer_face", "side_table_top", "headboard", "tv_shelf" };
-        var brass = new System.Collections.Generic.HashSet<string> { "handle_left", "handle_right", "drawer_knob", "tub_faucet", "sink_faucet", "mirror_frame_top", "mirror_frame_bottom", "base", "pole", "ceiling_fixture", "plaque_plate" };
-        var plastic = new System.Collections.Generic.HashSet<string> { "tv_screen", "phone_base", "phone_handset" };
-        var ceramicNames = new System.Collections.Generic.HashSet<string> { "tub", "sink_basin", "sink_pedestal", "sink_backsplash", "toilet_bowl", "toilet_tank", "toilet_seat" };
+        var redVelvet = new HashSet<string> { "seat", "backrest", "armrest_near", "armrest_far", "mattress", "blanket_fold" };
+        var gold = new HashSet<string> { "pillow_1", "pillow_2", "shade" };
+        var wood = new HashSet<string> { "cabinet_body", "door_left", "door_right", "cornice", "plinth", "body", "drawer_face", "side_table_top", "headboard", "tv_shelf" };
+        var brass = new HashSet<string> { "handle_left", "handle_right", "drawer_knob", "tub_faucet", "sink_faucet", "mirror_frame_top", "mirror_frame_bottom", "base", "pole", "ceiling_fixture", "plaque_plate" };
+        var plastic = new HashSet<string> { "tv_screen", "phone_base", "phone_handset" };
+        var ceramicNames = new HashSet<string> { "tub", "sink_basin", "sink_pedestal", "sink_backsplash", "toilet_bowl", "toilet_tank", "toilet_seat" };
 
         int count = 0;
         foreach (var target in targets)
@@ -195,7 +288,30 @@ public static class HotelBlockoutBuilder
             Undo.RegisterFullObjectHierarchyUndo(target, "Apply Luxury Furniture Colors");
             foreach (var r in target.GetComponentsInChildren<MeshRenderer>())
             {
+                // [방어막 1] 프리팹 인스턴스 검사 (3D 에셋 보존)
+                if (PrefabUtility.IsPartOfAnyPrefab(r.gameObject))
+                    continue;
+
+                // [방어막 2] 외부 FBX/OBJ/Blend 모델 메시는 색상 변경 제외
+                MeshFilter mf = r.GetComponent<MeshFilter>();
+                if (mf != null && mf.sharedMesh != null)
+                {
+                    string assetPath = AssetDatabase.GetAssetPath(mf.sharedMesh);
+                    if (!string.IsNullOrEmpty(assetPath) && 
+                    (assetPath.EndsWith(".fbx", System.StringComparison.OrdinalIgnoreCase) || 
+                        assetPath.EndsWith(".obj", System.StringComparison.OrdinalIgnoreCase) ||
+                        assetPath.EndsWith(".blend", System.StringComparison.OrdinalIgnoreCase) ||
+                        assetPath.EndsWith(".prefab", System.StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
+                }
+
                 string n = r.gameObject.name.ToLower();
+
+                // ⭐️ 위치 조건 없이 모든 벽체(Wall) 오브젝트에 지정 갈색을 적용하도록 통일
+                bool isWall = n.Contains("wall") || n.Contains("pillar") || n.Contains("sill") || n.Contains("lintel");
+
                 Material chosen =
                     redVelvet.Contains(n) ? velvetRed :
                     gold.Contains(n) ? mutedGold :
@@ -203,13 +319,15 @@ public static class HotelBlockoutBuilder
                     brass.Contains(n) ? brassMetal :
                     plastic.Contains(n) ? blackPlastic :
                     ceramicNames.Contains(n) ? ceramic :
-                    n == "floor" ? darkMarble : // ★ 바닥(Floor) 큐브에 어두운 럭셔리 대리석 자동 적용
                     n == "mirror" ? mirrorGlass :
                     n == "glass" ? windowGlass :
                     n.StartsWith("curtain_fold") ? vinylCurtain :
                     n.StartsWith("handle_") ? brassMetal :
                     n == "plaque_number" ? fontMaterial :
                     n == "leaf" ? doorWood :
+                    n == "floor" ? darkMarble :
+                    n == "ceiling" ? darkCeiling :
+                    isWall ? darkWall : // ⭐️ 벽면에 RGB(51, 38, 31) 갈색 강제 할당
                     null;
 
                 if (chosen == null)
@@ -220,117 +338,12 @@ public static class HotelBlockoutBuilder
             }
         }
 
-        Debug.Log($"럭셔리 가구 및 바닥 대리석 배색 완료: {count}개 블록 (레드 벨벳/마호가니/브라스/어두운 대리석/도기/유리).");
+        Debug.Log($"건물 외벽 및 내부 배색 완료: 총 {count}개 메시에 RGB(51, 38, 31) 갈색 적용됨!");
     }
 
-    // ★ 고급 바닥용 어두운 대리석 마블 패턴 텍스처 생성기
-    static Texture2D GenerateMarbleTexture(Color baseColor)
-    {
-        const int size = 128;
-        var tex = new Texture2D(size, size, TextureFormat.RGB24, false);
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float vein = Mathf.PerlinNoise(x * 0.05f, y * 0.05f);
-                float detail = Mathf.PerlinNoise(x * 0.2f, y * 0.2f);
-                float shade = 0.82f + vein * 0.3f - detail * 0.1f;
-                tex.SetPixel(x, y, baseColor * shade);
-            }
-        }
-        tex.Apply();
-        tex.wrapMode = TextureWrapMode.Repeat;
-        return tex;
-    }
-
-    static Material NewStandardMaterial(Color color, float glossiness, float metallic, Texture2D texture = null, Vector2 tiling = default)
-    {
-        var mat = new Material(Shader.Find("Standard"));
-        mat.color = color;
-        mat.SetFloat("_Glossiness", glossiness);
-        mat.SetFloat("_Metallic", metallic);
-        if (texture != null)
-        {
-            mat.mainTexture = texture;
-            mat.mainTextureScale = tiling;
-        }
-        return mat;
-    }
-
-    static Texture2D GenerateWoodTexture(Color baseColor)
-    {
-        const int size = 128;
-        var tex = new Texture2D(size, size, TextureFormat.RGB24, false);
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float grain = Mathf.PerlinNoise(x * 0.06f, y * 0.6f);
-                float streak = Mathf.PerlinNoise(x * 0.4f, y * 0.02f);
-                float shade = 0.78f + grain * 0.35f - streak * 0.12f;
-                tex.SetPixel(x, y, baseColor * shade);
-            }
-        }
-        tex.Apply();
-        tex.wrapMode = TextureWrapMode.Repeat;
-        return tex;
-    }
-
-    static Texture2D GenerateFabricTexture(Color baseColor)
-    {
-        const int size = 64;
-        var tex = new Texture2D(size, size, TextureFormat.RGB24, false);
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float weave = Mathf.PerlinNoise(x * 0.35f, y * 0.35f);
-                float fine = Mathf.PerlinNoise(x * 1.6f, y * 1.6f);
-                float shade = 0.88f + weave * 0.16f + fine * 0.08f;
-                tex.SetPixel(x, y, baseColor * shade);
-            }
-        }
-        tex.Apply();
-        tex.wrapMode = TextureWrapMode.Repeat;
-        return tex;
-    }
-
-    static Texture2D GenerateCeramicTexture(Color baseColor)
-    {
-        const int size = 64;
-        var tex = new Texture2D(size, size, TextureFormat.RGB24, false);
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float mottle = Mathf.PerlinNoise(x * 0.15f, y * 0.15f);
-                float shade = 0.94f + mottle * 0.08f;
-                tex.SetPixel(x, y, baseColor * shade);
-            }
-        }
-        tex.Apply();
-        tex.wrapMode = TextureWrapMode.Repeat;
-        return tex;
-    }
-
-    static Texture2D GenerateMetalTexture(Color baseColor)
-    {
-        const int size = 64;
-        var tex = new Texture2D(size, size, TextureFormat.RGB24, false);
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float streak = Mathf.PerlinNoise(x * 2.2f, y * 0.06f);
-                float shade = 0.8f + streak * 0.35f;
-                tex.SetPixel(x, y, baseColor * shade);
-            }
-        }
-        tex.Apply();
-        tex.wrapMode = TextureWrapMode.Repeat;
-        return tex;
-    }
-
+    // ==========================================
+    // 5. 층 / 방 배치 생성을 위한 절차적 빌더
+    // ==========================================
     static void BuildFloor(int floorNumber)
     {
         string floorName = $"Floor{floorNumber}_Hotel";
@@ -383,8 +396,6 @@ public static class HotelBlockoutBuilder
         BuildElevatorLobby(elevator.transform);
 
         FocusOn(floor);
-        Debug.Log($"{floorName} 생성 완료: EL 로비(정사각) + 복도 + {floorNumber}01~{floorNumber}05 + " +
-            (floorNumber == 1 ? "프론트(공란)/통로/스태프룸." : "빈 공간/스태프룸."));
     }
 
     static void BuildGuestRoomSlot(Transform parent, string name, Vector3 slotPosition, float yRotation)
@@ -393,7 +404,7 @@ public static class HotelBlockoutBuilder
         slot.transform.SetParent(parent);
         slot.transform.localPosition = slotPosition;
         slot.transform.localRotation = Quaternion.Euler(0f, yRotation, 0f);
-        Undo.RegisterCreatedObjectUndo(slot, "Build Floor 1");
+        Undo.RegisterCreatedObjectUndo(slot, "Build Floor");
 
         BuildRoomShell(slot.transform, RoomWidth, RoomLength, includeBathroom: true, doorCenterX: RoomWidth - 1.1f,
             roomLabel: name.Replace("Room_", ""));
@@ -405,7 +416,7 @@ public static class HotelBlockoutBuilder
         slot.transform.SetParent(parent);
         slot.transform.localPosition = new Vector3(westEdgeX + width, 0f, 0f);
         slot.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-        Undo.RegisterCreatedObjectUndo(slot, "Build Floor 1");
+        Undo.RegisterCreatedObjectUndo(slot, "Build Floor");
 
         BuildRoomShell(slot.transform, width, RoomLength, includeBathroom: false, doorCenterX: width / 2f);
     }
@@ -416,7 +427,7 @@ public static class HotelBlockoutBuilder
         slot.transform.SetParent(parent);
         float zStart = north ? CorridorDepth : -RoomLength;
         slot.transform.localPosition = new Vector3(westEdgeX, 0f, zStart);
-        Undo.RegisterCreatedObjectUndo(slot, "Build Floor 1");
+        Undo.RegisterCreatedObjectUndo(slot, "Build Floor");
 
         MakeBox("Floor", slot.transform,
             new Vector3(width / 2f, -WallThickness / 2f, RoomLength / 2f),
@@ -440,7 +451,7 @@ public static class HotelBlockoutBuilder
         var slot = new GameObject("Front_Entrance_Wall");
         slot.transform.SetParent(parent);
         slot.transform.localPosition = new Vector3(westEdgeX, 0f, -RoomLength);
-        Undo.RegisterCreatedObjectUndo(slot, "Build Floor 1");
+        Undo.RegisterCreatedObjectUndo(slot, "Build Floor");
 
         float doorCenter = spanWidth / 2f;
         float doorMin = doorCenter - doorWidth / 2f;
@@ -551,10 +562,6 @@ public static class HotelBlockoutBuilder
         if (interactableType != null)
         {
             pivot.AddComponent(interactableType);
-        }
-        else
-        {
-            Debug.LogWarning("DoorInteractable 스크립트를 찾을 수 없어 문에 추가하지 않았습니다.");
         }
 
         Undo.RegisterCreatedObjectUndo(pivot, "Build Hotel Blockout");
@@ -694,21 +701,36 @@ public static class HotelBlockoutBuilder
         BuildArmchair(furniture.transform, "Sofa_1", Sofa1CenterZ);
         BuildArmchair(furniture.transform, "Sofa_2", Sofa2CenterZ);
 
-        MakeCylinder("Table_Leg_FL", furniture.transform, new Vector3(SeatingCenterX - TableWidth / 2f + 0.05f, (TableHeight - 0.05f) / 2f, TableCenterZ - TableDepth / 2f + 0.05f), 0.04f, TableHeight - 0.05f);
-        MakeCylinder("Table_Leg_FR", furniture.transform, new Vector3(SeatingCenterX + TableWidth / 2f - 0.05f, (TableHeight - 0.05f) / 2f, TableCenterZ - TableDepth / 2f + 0.05f), 0.04f, TableHeight - 0.05f);
-        MakeCylinder("Table_Leg_BL", furniture.transform, new Vector3(SeatingCenterX - TableWidth / 2f + 0.05f, (TableHeight - 0.05f) / 2f, TableCenterZ + TableDepth / 2f - 0.05f), 0.04f, TableHeight - 0.05f);
-        MakeCylinder("Table_Leg_BR", furniture.transform, new Vector3(SeatingCenterX + TableWidth / 2f - 0.05f, (TableHeight - 0.05f) / 2f, TableCenterZ + TableDepth / 2f - 0.05f), 0.04f, TableHeight - 0.05f);
-        MakeBox("Side_Table_Top", furniture.transform,
-            new Vector3(SeatingCenterX, TableHeight - 0.025f, TableCenterZ),
-            new Vector3(TableWidth, 0.05f, TableDepth));
+        // --- 사이드 테이블 (Table_01 프리팹 로드) ---
+        string tablePrefabPath = "Assets/3rdParty/MedievalTavernPack/Prefabs/Furniture/Table_01.prefab";
+        GameObject tablePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(tablePrefabPath);
 
-        MakeBox("TV_Shelf", furniture.transform,
-            new Vector3(TvCenterX, TvShelfElevation + TvShelfHeight / 2f, TvCenterZ),
-            new Vector3(TvThickness, TvShelfHeight, TvSpan));
-        
-        MakeBox("TV_Screen", furniture.transform,
-            new Vector3(RoomWidth - 0.03f, TvShelfElevation + 0.75f, TvCenterZ),
-            new Vector3(0.06f, 0.9f, TvSpan * 0.75f));
+        if (tablePrefab != null)
+        {
+            GameObject sideTable = PrefabUtility.InstantiatePrefab(tablePrefab, furniture.transform) as GameObject;
+            sideTable.name = "Side_Table";
+            
+            // 위치 지정 (바닥 기준 Y=0f)
+            sideTable.transform.localPosition = new Vector3(SeatingCenterX, 0f, TableCenterZ);
+            sideTable.transform.localRotation = Quaternion.identity;
+            
+            // 객실 사이드 테이블 크기에 맞춰 스케일 조절 (필요시 수치 조절)
+            sideTable.transform.localScale = new Vector3(0.6f, 0.6f, 0.6f);
+
+            Undo.RegisterCreatedObjectUndo(sideTable, "Build Hotel Blockout");
+        }
+        else
+        {
+            // 예외 처리 (에셋을 못 찾을 경우 기존 블록아웃 생성)
+            MakeCylinder("Table_Leg_FL", furniture.transform, new Vector3(SeatingCenterX - TableWidth / 2f + 0.05f, (TableHeight - 0.05f) / 2f, TableCenterZ - TableDepth / 2f + 0.05f), 0.04f, TableHeight - 0.05f);
+            MakeCylinder("Table_Leg_FR", furniture.transform, new Vector3(SeatingCenterX + TableWidth / 2f - 0.05f, (TableHeight - 0.05f) / 2f, TableCenterZ - TableDepth / 2f + 0.05f), 0.04f, TableHeight - 0.05f);
+            MakeCylinder("Table_Leg_BL", furniture.transform, new Vector3(SeatingCenterX - TableWidth / 2f + 0.05f, (TableHeight - 0.05f) / 2f, TableCenterZ + TableDepth / 2f - 0.05f), 0.04f, TableHeight - 0.05f);
+            MakeCylinder("Table_Leg_BR", furniture.transform, new Vector3(SeatingCenterX + TableWidth / 2f - 0.05f, (TableHeight - 0.05f) / 2f, TableCenterZ + TableDepth / 2f - 0.05f), 0.04f, TableHeight - 0.05f);
+            MakeBox("Side_Table_Top", furniture.transform,
+                new Vector3(SeatingCenterX, TableHeight - 0.025f, TableCenterZ),
+                new Vector3(TableWidth, 0.05f, TableDepth));
+        }
+
     }
 
     static void BuildRoomLighting(Transform parent, float width, float length)
@@ -718,25 +740,79 @@ public static class HotelBlockoutBuilder
 
         float centerX = width / 2f;
         float centerZ = length / 2f;
-        MakeCylinder("Ceiling_Fixture", lighting.transform, new Vector3(centerX, CeilingHeight - 0.06f, centerZ), 0.4f, 0.1f);
-        BuildPointLight(lighting.transform, "Ceiling_Light", new Vector3(centerX, CeilingHeight - 0.3f, centerZ),
-            new Color(1f, 0.82f, 0.6f), 1.2f, 7f);
 
-        BuildLamp(lighting.transform, "Nightstand_Lamp", NightstandCenterX + 0.28f, NightstandHeight, NightstandCenterZ - 0.28f);
+        // --- 천장 샹들리에 조명 에셋 로드 ---
+        string ceilingLampPath = "Assets/3rdParty/Celling_lamp/source/lamp_19.fbx";
+        GameObject ceilingLampPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(ceilingLampPath);
+
+        if (ceilingLampPrefab == null)
+        {
+            // .fbx로 못 찾을 경우 .blend 시도
+            ceilingLampPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/3rdParty/Ceiling_lamp/source/lamp_19.blend");
+        }
+
+        if (ceilingLampPrefab != null)
+        {
+            GameObject ceilingFixture = PrefabUtility.InstantiatePrefab(ceilingLampPrefab, lighting.transform) as GameObject;
+            ceilingFixture.name = "Ceiling_Fixture";
+            
+            // 피벗(중심점)이 천장 고정부에 위치해 있으므로 Y축을 CeilingHeight(2.5m)에 맞춤
+            ceilingFixture.transform.localPosition = new Vector3(centerX, CeilingHeight, centerZ);
+            ceilingFixture.transform.localRotation = Quaternion.identity;
+            ceilingFixture.transform.localScale = Vector3.one;
+
+            Undo.RegisterCreatedObjectUndo(ceilingFixture, "Build Hotel Blockout");
+        }
+        else
+        {
+            // 예외 처리 (에셋을 찾지 못할 경우 기존 실린더 대체)
+            MakeCylinder("Ceiling_Fixture", lighting.transform, new Vector3(centerX, CeilingHeight - 0.06f, centerZ), 0.4f, 0.1f);
+        }
+
+        // 샹들리에 하단 전구 높이에 맞춰 포인트 라이트 위치 조정 (Y: CeilingHeight - 0.8f)
+        BuildPointLight(lighting.transform, "Ceiling_Light", new Vector3(centerX, CeilingHeight - 0.8f, centerZ),
+            new Color(1f, 0.82f, 0.6f), 2.0f, 7f);
+
+        // 스탠드 조명 생성
+        BuildLamp(lighting.transform, "Nightstand_Lamp", NightstandCenterX, NightstandHeight, NightstandCenterZ - 0.25f);
         BuildLamp(lighting.transform, "SideTable_Lamp", SeatingCenterX, TableHeight, TableCenterZ);
     }
 
     static void BuildLamp(Transform parent, string name, float x, float surfaceY, float z)
     {
-        var lamp = new GameObject(name);
-        lamp.transform.SetParent(parent, false);
+        // 3D 램프 모델 경로 지정
+        string lampPrefabPath = "Assets/3rdParty/Lamp/source/LampTurn.blend";
+        GameObject lampPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(lampPrefabPath);
 
-        MakeCylinder("Base", lamp.transform, new Vector3(x, surfaceY + 0.02f, z), 0.12f, 0.04f);
-        MakeCylinder("Pole", lamp.transform, new Vector3(x, surfaceY + 0.16f, z), 0.03f, 0.24f);
-        MakeCylinder("Shade", lamp.transform, new Vector3(x, surfaceY + 0.34f, z), 0.22f, 0.16f);
+        if (lampPrefab != null)
+        {
+            GameObject lampObj = PrefabUtility.InstantiatePrefab(lampPrefab, parent) as GameObject;
+            lampObj.name = name;
+            
+            // 스크린샷 인스펙터 값 반영 (Position, Rotation X: -90, Scale: 0.1)
+            lampObj.transform.localPosition = new Vector3(x, surfaceY, z);
+            lampObj.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);
+            lampObj.transform.localScale = new Vector3(0.4f, 0.4f, 0.4f);
 
-        BuildPointLight(lamp.transform, "Lamp_Light", new Vector3(x, surfaceY + 0.32f, z),
-            new Color(1f, 0.78f, 0.52f), 0.7f, 2.8f);
+            // 은은한 램프 불빛 추가 (자식 오브젝트로 생성)
+            BuildPointLight(lampObj.transform, "Lamp_Light", new Vector3(0f, 1.8f, 0f),
+                new Color(1f, 0.78f, 0.52f), 1.2f, 3.5f);
+
+            Undo.RegisterCreatedObjectUndo(lampObj, "Build Hotel Blockout");
+        }
+        else
+        {
+            // 예외 처리 (에셋 미로드 시 기존 블록아웃 대체)
+            var lamp = new GameObject(name);
+            lamp.transform.SetParent(parent, false);
+
+            MakeCylinder("Base", lamp.transform, new Vector3(x, surfaceY + 0.02f, z), 0.12f, 0.04f);
+            MakeCylinder("Pole", lamp.transform, new Vector3(x, surfaceY + 0.16f, z), 0.03f, 0.24f);
+            MakeCylinder("Shade", lamp.transform, new Vector3(x, surfaceY + 0.34f, z), 0.22f, 0.16f);
+
+            BuildPointLight(lamp.transform, "Lamp_Light", new Vector3(x, surfaceY + 0.32f, z),
+                new Color(1f, 0.78f, 0.52f), 0.7f, 2.8f);
+        }
     }
 
     static void BuildPointLight(Transform parent, string name, Vector3 localPosition, Color color, float intensity, float range)
@@ -756,32 +832,52 @@ public static class HotelBlockoutBuilder
 
     static void BuildWardrobe(Transform parent)
     {
-        var wardrobe = new GameObject("Wardrobe");
-        wardrobe.transform.SetParent(parent, false);
+        // 옷장 프리팹 경로 지정
+        string closetPrefabPath = "Assets/3rdParty/Furniture/Prefabs/BigCloset.prefab";
+        GameObject closetPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(closetPrefabPath);
 
-        MakeBox("Plinth", wardrobe.transform,
-            new Vector3(WardrobeCenterX, 0.05f, WardrobeCenterZ),
-            new Vector3(WardrobeSize, 0.1f, WardrobeSize));
+        if (closetPrefab != null)
+        {
+            GameObject wardrobe = PrefabUtility.InstantiatePrefab(closetPrefab, parent) as GameObject;
+            wardrobe.name = "Wardrobe";
+            
+            // 위치 배치 (바닥 기준 Y=0f)
+            wardrobe.transform.localPosition = new Vector3(WardrobeCenterX, 0f, WardrobeCenterZ);
+            wardrobe.transform.localRotation = Quaternion.identity;
+            wardrobe.transform.localScale = new Vector3(0.8f, 0.8f, 0.8f);
 
-        MakeBox("Cabinet_Body", wardrobe.transform,
-            new Vector3(WardrobeCenterX, 0.1f + (WardrobeHeight - 0.2f) / 2f, WardrobeCenterZ),
-            new Vector3(WardrobeSize - 0.05f, WardrobeHeight - 0.2f, WardrobeSize - 0.05f));
+            Undo.RegisterCreatedObjectUndo(wardrobe, "Build Hotel Blockout");
+        }
+        else
+        {
+            // 예외 처리 (에셋을 찾지 못할 경우 기존 블록아웃 생성)
+            var wardrobe = new GameObject("Wardrobe");
+            wardrobe.transform.SetParent(parent, false);
 
-        MakeBox("Cornice", wardrobe.transform,
-            new Vector3(WardrobeCenterX, WardrobeHeight - 0.05f, WardrobeCenterZ),
-            new Vector3(WardrobeSize + 0.05f, 0.1f, WardrobeSize + 0.05f));
+            MakeBox("Plinth", wardrobe.transform,
+                new Vector3(WardrobeCenterX, 0.05f, WardrobeCenterZ),
+                new Vector3(WardrobeSize, 0.1f, WardrobeSize));
 
-        float doorWidth = (WardrobeSize - 0.08f) / 2f;
-        float doorZ = WardrobeCenterZ + WardrobeSize / 2f + 0.02f;
-        float doorY = 0.15f + (WardrobeHeight - 0.5f) / 2f;
-        float door1X = WardrobeCenterX - doorWidth / 2f - 0.02f;
-        float door2X = WardrobeCenterX + doorWidth / 2f + 0.02f;
+            MakeBox("Cabinet_Body", wardrobe.transform,
+                new Vector3(WardrobeCenterX, 0.1f + (WardrobeHeight - 0.2f) / 2f, WardrobeCenterZ),
+                new Vector3(WardrobeSize - 0.05f, WardrobeHeight - 0.2f, WardrobeSize - 0.05f));
 
-        MakeBox("Door_Left", wardrobe.transform, new Vector3(door1X, doorY, doorZ), new Vector3(doorWidth, WardrobeHeight - 0.5f, 0.03f));
-        MakeBox("Door_Right", wardrobe.transform, new Vector3(door2X, doorY, doorZ), new Vector3(doorWidth, WardrobeHeight - 0.5f, 0.03f));
+            MakeBox("Cornice", wardrobe.transform,
+                new Vector3(WardrobeCenterX, WardrobeHeight - 0.05f, WardrobeCenterZ),
+                new Vector3(WardrobeSize + 0.05f, 0.1f, WardrobeSize + 0.05f));
 
-        MakeBox("Handle_Left", wardrobe.transform, new Vector3(door1X + doorWidth / 2f - 0.03f, doorY, doorZ + 0.03f), new Vector3(0.04f, 0.15f, 0.04f));
-        MakeBox("Handle_Right", wardrobe.transform, new Vector3(door2X - doorWidth / 2f + 0.03f, doorY, doorZ + 0.03f), new Vector3(0.04f, 0.15f, 0.04f));
+            float doorWidth = (WardrobeSize - 0.08f) / 2f;
+            float doorZ = WardrobeCenterZ + WardrobeSize / 2f + 0.02f;
+            float doorY = 0.15f + (WardrobeHeight - 0.5f) / 2f;
+            float door1X = WardrobeCenterX - doorWidth / 2f - 0.02f;
+            float door2X = WardrobeCenterX + doorWidth / 2f + 0.02f;
+
+            MakeBox("Door_Left", wardrobe.transform, new Vector3(door1X, doorY, doorZ), new Vector3(doorWidth, WardrobeHeight - 0.5f, 0.03f));
+            MakeBox("Door_Right", wardrobe.transform, new Vector3(door2X, doorY, doorZ), new Vector3(doorWidth, WardrobeHeight - 0.5f, 0.03f));
+
+            MakeBox("Handle_Left", wardrobe.transform, new Vector3(door1X + doorWidth / 2f - 0.03f, doorY, doorZ + 0.03f), new Vector3(0.04f, 0.15f, 0.04f));
+            MakeBox("Handle_Right", wardrobe.transform, new Vector3(door2X - doorWidth / 2f + 0.03f, doorY, doorZ + 0.03f), new Vector3(0.04f, 0.15f, 0.04f));
+        }
     }
 
     static void BuildNightstandAndPhone(Transform parent)
@@ -789,109 +885,131 @@ public static class HotelBlockoutBuilder
         var nightstand = new GameObject("Nightstand_Phone");
         nightstand.transform.SetParent(parent, false);
 
-        const float legHeight = 0.15f;
-        float legInsetX0 = NightstandCenterX - NightstandSize / 2f + 0.05f;
-        float legInsetX1 = NightstandCenterX + NightstandSize / 2f - 0.05f;
-        float legInsetZ0 = NightstandCenterZ - NightstandSize / 2f + 0.05f;
-        float legInsetZ1 = NightstandCenterZ + NightstandSize / 2f - 0.05f;
+        // 협탁(SmallCloset) 프리팹 로드
+        string nightstandPrefabPath = "Assets/3rdParty/Furniture/Prefabs/SmallCloset.prefab";
+        GameObject nightstandPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(nightstandPrefabPath);
 
-        MakeCylinder("Leg_FL", nightstand.transform, new Vector3(legInsetX0, legHeight / 2f, legInsetZ0), 0.04f, legHeight);
-        MakeCylinder("Leg_FR", nightstand.transform, new Vector3(legInsetX1, legHeight / 2f, legInsetZ0), 0.04f, legHeight);
-        MakeCylinder("Leg_BL", nightstand.transform, new Vector3(legInsetX0, legHeight / 2f, legInsetZ1), 0.04f, legHeight);
-        MakeCylinder("Leg_BR", nightstand.transform, new Vector3(legInsetX1, legHeight / 2f, legInsetZ1), 0.04f, legHeight);
+        if (nightstandPrefab != null)
+        {
+            GameObject standObj = PrefabUtility.InstantiatePrefab(nightstandPrefab, nightstand.transform) as GameObject;
+            standObj.name = "Nightstand_Model";
+            
+            // 바닥 기준 배치
+            standObj.transform.localPosition = new Vector3(NightstandCenterX, 0f, NightstandCenterZ);
+            standObj.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+            standObj.transform.localScale = new Vector3(1f, 0.7f, 1.2f);
 
-        MakeBox("Body", nightstand.transform,
-            new Vector3(NightstandCenterX, legHeight + (NightstandHeight - legHeight) / 2f, NightstandCenterZ),
-            new Vector3(NightstandSize, NightstandHeight - legHeight, NightstandSize));
+            Undo.RegisterCreatedObjectUndo(standObj, "Build Hotel Blockout");
+        }
+        else
+        {
+            // 예외 처리 (에셋 미로드 시 기존 블록아웃 대체)
+            const float legHeight = 0.15f;
+            float legInsetX0 = NightstandCenterX - NightstandSize / 2f + 0.05f;
+            float legInsetX1 = NightstandCenterX + NightstandSize / 2f - 0.05f;
+            float legInsetZ0 = NightstandCenterZ - NightstandSize / 2f + 0.05f;
+            float legInsetZ1 = NightstandCenterZ + NightstandSize / 2f - 0.05f;
 
-        MakeBox("Drawer_Face", nightstand.transform,
-            new Vector3(NightstandCenterX + NightstandSize / 2f - 0.02f, (legHeight + NightstandHeight) / 2f, NightstandCenterZ),
-            new Vector3(0.04f, 0.22f, NightstandSize - 0.15f));
-        MakeBox("Drawer_Knob", nightstand.transform,
-            new Vector3(NightstandCenterX + NightstandSize / 2f + 0.01f, (legHeight + NightstandHeight) / 2f, NightstandCenterZ),
-            new Vector3(0.03f, 0.03f, 0.06f));
+            MakeCylinder("Leg_FL", nightstand.transform, new Vector3(legInsetX0, legHeight / 2f, legInsetZ0), 0.04f, legHeight);
+            MakeCylinder("Leg_FR", nightstand.transform, new Vector3(legInsetX1, legHeight / 2f, legInsetZ0), 0.04f, legHeight);
+            MakeCylinder("Leg_BL", nightstand.transform, new Vector3(legInsetX0, legHeight / 2f, legInsetZ1), 0.04f, legHeight);
+            MakeCylinder("Leg_BR", nightstand.transform, new Vector3(legInsetX1, legHeight / 2f, legInsetZ1), 0.04f, legHeight);
 
-        MakeBox("Phone_Base", nightstand.transform,
-            new Vector3(NightstandCenterX, NightstandHeight + 0.03f, NightstandCenterZ),
-            new Vector3(0.28f, 0.06f, 0.2f));
-        MakeBox("Phone_Handset", nightstand.transform,
-            new Vector3(NightstandCenterX, NightstandHeight + 0.09f, NightstandCenterZ),
-            new Vector3(0.22f, 0.05f, 0.09f));
+            MakeBox("Body", nightstand.transform,
+                new Vector3(NightstandCenterX, legHeight + (NightstandHeight - legHeight) / 2f, NightstandCenterZ),
+                new Vector3(NightstandSize, NightstandHeight - legHeight, NightstandSize));
+
+            MakeBox("Drawer_Face", nightstand.transform,
+                new Vector3(NightstandCenterX + NightstandSize / 2f - 0.02f, (legHeight + NightstandHeight) / 2f, NightstandCenterZ),
+                new Vector3(0.04f, 0.22f, NightstandSize - 0.15f));
+            MakeBox("Drawer_Knob", nightstand.transform,
+                new Vector3(NightstandCenterX + NightstandSize / 2f + 0.01f, (legHeight + NightstandHeight) / 2f, NightstandCenterZ),
+                new Vector3(0.03f, 0.03f, 0.06f));
+        }
+
+        // 협탁 위 전화기
+        string phonePrefabPath = "Assets/3rdParty/VintageTelephone/VintageTelephone.obj";
+        GameObject phonePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(phonePrefabPath);
+
+        if (phonePrefab != null)
+        {
+            GameObject phoneObj = PrefabUtility.InstantiatePrefab(phonePrefab, nightstand.transform) as GameObject;
+            phoneObj.name = "Vintage_Telephone";
+            
+            // 협탁 상단 표면 높이(약 0.65m) 및 인스펙터 스케일(0.5) 반영
+            phoneObj.transform.localPosition = new Vector3(NightstandCenterX, 0.72f, NightstandCenterZ + 0.2f);
+            phoneObj.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+            phoneObj.transform.localScale = new Vector3(0.4f, 0.4f, 0.4f);
+
+            Undo.RegisterCreatedObjectUndo(phoneObj, "Build Hotel Blockout");
+        }
+        else
+        {
+            // 에셋 미로드 시 예외 처리 (기존 블록아웃)
+            MakeBox("Phone_Base", nightstand.transform,
+                new Vector3(NightstandCenterX, NightstandHeight + 0.03f, NightstandCenterZ),
+                new Vector3(0.28f, 0.06f, 0.2f));
+            MakeBox("Phone_Handset", nightstand.transform,
+                new Vector3(NightstandCenterX, NightstandHeight + 0.09f, NightstandCenterZ),
+                new Vector3(0.22f, 0.05f, 0.09f));
+        }
     }
 
     static void BuildArmchair(Transform parent, string name, float centerZ)
     {
-        var chair = new GameObject(name);
-        chair.transform.SetParent(parent, false);
+        var source = AssetDatabase.LoadAssetAtPath<GameObject>(ArmchairSourcePath);
+        if (source == null)
+        {
+            source = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/3rdParty/Furniture/Prefabs/Fotel3.fbx");
+        }
 
-        const float legHeight = 0.12f;
-        const float seatHeight = 0.15f;
-        const float armHeight = 0.35f;
-        const float backHeight = 0.55f;
-        float x0 = SeatingCenterX - SofaSize / 2f;
-        float x1 = SeatingCenterX + SofaSize / 2f;
-        float z0 = centerZ - SofaSize / 2f;
-        float z1 = centerZ + SofaSize / 2f;
+        if (source == null)
+        {
+            Debug.LogError($"안락의자 에셋을 찾을 수 없습니다: {ArmchairSourcePath}");
+            return;
+        }
 
-        MakeCylinder("Leg_FL", chair.transform, new Vector3(x0 + 0.08f, legHeight / 2f, z0 + 0.08f), 0.06f, legHeight);
-        MakeCylinder("Leg_FR", chair.transform, new Vector3(x1 - 0.08f, legHeight / 2f, z0 + 0.08f), 0.06f, legHeight);
-        MakeCylinder("Leg_BL", chair.transform, new Vector3(x0 + 0.08f, legHeight / 2f, z1 - 0.08f), 0.06f, legHeight);
-        MakeCylinder("Leg_BR", chair.transform, new Vector3(x1 - 0.08f, legHeight / 2f, z1 - 0.08f), 0.06f, legHeight);
+        var chairInstance = (GameObject)PrefabUtility.InstantiatePrefab(source, parent);
+        chairInstance.name = name;
 
-        MakeBox("Seat", chair.transform,
-            new Vector3(SeatingCenterX, legHeight + seatHeight / 2f, centerZ),
-            new Vector3(SofaSize - 0.2f, seatHeight, SofaSize - 0.05f));
+        Vector3 chairPos = new Vector3(SeatingCenterX, 0f, centerZ);
+        chairInstance.transform.localPosition = chairPos;
 
-        MakeBox("Backrest", chair.transform,
-            new Vector3(x0 + 0.06f, legHeight + backHeight / 2f, centerZ),
-            new Vector3(0.12f, backHeight, SofaSize - 0.05f));
+        // 1. TV 중심 위치(TvCenterX, 0, TvCenterZ)를 바라보도록 회전 설정
+        Vector3 tvPos = new Vector3(TvCenterX, 0f, TvCenterZ);
+        Vector3 lookDir = (tvPos - chairPos).normalized;
+        if (lookDir != Vector3.zero)
+        {
+            chairInstance.transform.localRotation = Quaternion.LookRotation(lookDir, Vector3.up);
+        }
 
-        MakeBox("Armrest_Near", chair.transform,
-            new Vector3(SeatingCenterX + 0.05f, legHeight + armHeight / 2f, z0 + 0.06f),
-            new Vector3(SofaSize - 0.3f, armHeight, 0.12f));
-        MakeBox("Armrest_Far", chair.transform,
-            new Vector3(SeatingCenterX + 0.05f, legHeight + armHeight / 2f, z1 - 0.06f),
-            new Vector3(SofaSize - 0.3f, armHeight, 0.12f));
+        // 2. 스케일(크기) 0.7로 변경
+        chairInstance.transform.localScale = Vector3.one * 0.7f;
+
+        Undo.RegisterCreatedObjectUndo(chairInstance, "Build Hotel Blockout");
     }
 
     static void BuildBed(Transform parent, float width, float length)
     {
-        var bed = new GameObject("Bed");
-        bed.transform.SetParent(parent, false);
+        var bedSource = AssetDatabase.LoadAssetAtPath<GameObject>(BedSourcePath);
+        if (bedSource == null)
+        {
+            Debug.LogError($"침대 에셋을 찾을 수 없습니다: {BedSourcePath}");
+            return;
+        }
 
+        var bedWrapper = new GameObject("Bed");
+        bedWrapper.transform.SetParent(parent, false);
+
+        // 침대가 들어갈 위치 중앙값 계산
         float bedX0 = 0f;
         float bedZ0 = BathLength + BedClearance;
+        Vector3 targetFootprintCenter = new Vector3(bedX0 + BedWidth / 2f, 0f, bedZ0 + BedDepth / 2f);
 
-        MakeBox("Mattress", bed.transform,
-            new Vector3(bedX0 + BedWidth / 2f, BedLegHeight + BedHeight / 2f, bedZ0 + BedDepth / 2f),
-            new Vector3(BedWidth, BedHeight, BedDepth));
+        // 프리팹 직접 생성 및 정렬 배치
+        PlaceBedInstance(bedSource, bedWrapper.transform, targetFootprintCenter);
 
-        float legInsetX0 = bedX0 + BedLegSize / 2f;
-        float legInsetX1 = bedX0 + BedWidth - BedLegSize / 2f;
-        float legInsetZ0 = bedZ0 + BedLegSize / 2f;
-        float legInsetZ1 = bedZ0 + BedDepth - BedLegSize / 2f;
-        var legSize = new Vector3(BedLegSize, BedLegHeight, BedLegSize);
-
-        MakeBox("Leg_FrontLeft", bed.transform, new Vector3(legInsetX0, BedLegHeight / 2f, legInsetZ0), legSize);
-        MakeBox("Leg_FrontRight", bed.transform, new Vector3(legInsetX1, BedLegHeight / 2f, legInsetZ0), legSize);
-        MakeBox("Leg_BackLeft", bed.transform, new Vector3(legInsetX0, BedLegHeight / 2f, legInsetZ1), legSize);
-        MakeBox("Leg_BackRight", bed.transform, new Vector3(legInsetX1, BedLegHeight / 2f, legInsetZ1), legSize);
-
-        MakeBox("Headboard", bed.transform,
-            new Vector3(0.05f, 0.55f, bedZ0 + BedDepth / 2f),
-            new Vector3(0.1f, 1.1f, BedDepth));
-
-        float mattressTopY = BedLegHeight + BedHeight;
-        MakeBox("Pillow_1", bed.transform,
-            new Vector3(0.45f, mattressTopY + 0.09f, bedZ0 + 0.85f),
-            new Vector3(0.65f, 0.18f, 1.05f));
-        MakeBox("Pillow_2", bed.transform,
-            new Vector3(0.45f, mattressTopY + 0.09f, bedZ0 + BedDepth - 0.85f),
-            new Vector3(0.65f, 0.18f, 1.05f));
-
-        MakeBox("Blanket_Fold", bed.transform,
-            new Vector3(BedWidth - 0.55f, mattressTopY + 0.07f, bedZ0 + BedDepth / 2f),
-            new Vector3(1.1f, 0.14f, BedDepth - 0.3f));
+        Undo.RegisterCreatedObjectUndo(bedWrapper, "Build Hotel Blockout");
     }
 
     static void BuildCorridor(Transform parent, float totalWidth)
@@ -944,108 +1062,38 @@ public static class HotelBlockoutBuilder
             new Vector3(0.3f, 2.1f, 1.8f));
     }
 
-    static GameObject MakeBox(string name, Transform parent, Vector3 localPosition, Vector3 size)
-    {
-        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        go.name = name;
-        go.transform.SetParent(parent, false);
-        go.transform.localPosition = localPosition;
-        go.transform.localScale = size;
-        Undo.RegisterCreatedObjectUndo(go, "Build Hotel Blockout");
-        return go;
-    }
 
-    static GameObject MakeCylinder(string name, Transform parent, Vector3 localPosition, float diameter, float height)
-    {
-        var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        go.name = name;
-        go.transform.SetParent(parent, false);
-        go.transform.localPosition = localPosition;
-        go.transform.localScale = new Vector3(diameter, height / 2f, diameter);
-        Undo.RegisterCreatedObjectUndo(go, "Build Hotel Blockout");
-        return go;
-    }
-
-    static void ClearExisting(string name)
-    {
-        var existing = GameObject.Find(name);
-        if (existing != null)
-            Object.DestroyImmediate(existing);
-    }
-
-    static void FocusOn(GameObject go)
-    {
-        Selection.activeGameObject = go;
-        SceneView.lastActiveSceneView?.FrameSelected();
-    }
-
-    // ===================================================================================
-    // Adds a TV + stand to every guest room's Furniture object, copying the exact placement
-    // Room_304 already uses (it was hand-placed in the Editor as the reference). Purely
-    // additive: only instantiates the two prefabs where they're missing, never clears or
-    // rebuilds anything else.
-    // ===================================================================================
-
-    const string TvSourcePath = "Assets/3rdParty/70-tv/source/TV/TV.blend";
-    const string TvStandSourcePath = "Assets/3rdParty/tv-stand-roma-by-turri/source/Moble tv roma turri.fbx";
-
-    static readonly Vector3 Room304TvStandLocalPos = new Vector3(9.725f, 0f, 5f);
-    static readonly Quaternion Room304TvStandLocalRot = Quaternion.identity;
-    static readonly Vector3 Room304TvLocalPos = new Vector3(9.825f, 0.4f, 5f);
-    static readonly Quaternion Room304TvLocalRot = new Quaternion(-0.5f, -0.5f, -0.5f, 0.5f);
-
-    [MenuItem("Tools/Hotel Blockout/Add TV+Stand To Rooms (From Room 304 Reference)")]
-    public static void AddTvAndStandFromRoom304ReferenceMenu() => AddTvAndStandFromRoom304Reference();
-
-    // Headless entry point: `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.AddTvAndStandFromRoom304ReferenceAndSaveBatch`
-    public static void AddTvAndStandFromRoom304ReferenceAndSaveBatch()
-    {
-        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
-        AddTvAndStandFromRoom304Reference();
-        EditorSceneManager.SaveScene(scene);
-        Debug.Log("AddTvAndStandFromRoom304ReferenceAndSaveBatch 완료: SampleScene에 저장됨.");
-    }
-
+    // ==========================================
+    // 6. 통합 메인 빌더용 내부 후처리 메서드들
+    // ==========================================
     static void AddTvAndStandFromRoom304Reference()
     {
         var tvSource = AssetDatabase.LoadAssetAtPath<GameObject>(TvSourcePath);
         var standSource = AssetDatabase.LoadAssetAtPath<GameObject>(TvStandSourcePath);
         if (tvSource == null || standSource == null)
-        {
-            Debug.LogError($"TV 또는 스탠드 소스 파일을 찾을 수 없습니다. TV: {TvSourcePath} (찾음: {tvSource != null}), Stand: {TvStandSourcePath} (찾음: {standSource != null})");
             return;
-        }
 
-        int added = 0, alreadyPresent = 0, roomNotFound = 0;
-
+        int added = 0;
         for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
         {
             for (int d = 1; d <= 5; d++)
             {
                 string roomName = "Room_" + (floorNumber * 100 + d);
                 var roomGo = GameObject.Find(roomName);
-                if (roomGo == null)
-                {
-                    roomNotFound++;
-                    continue;
-                }
+                if (roomGo == null) continue;
 
                 var furniture = roomGo.transform.Find("Furniture");
                 if (furniture == null)
                 {
                     var furnitureGo = new GameObject("Furniture");
                     furnitureGo.transform.SetParent(roomGo.transform, false);
-                    Undo.RegisterCreatedObjectUndo(furnitureGo, "Add TV+Stand From Room 304 Reference");
+                    Undo.RegisterCreatedObjectUndo(furnitureGo, "Add TV+Stand");
                     furniture = furnitureGo.transform;
                 }
 
                 bool hasTv = furniture.Find("TV") != null;
                 bool hasStand = furniture.Find("Moble tv roma turri") != null;
-                if (hasTv && hasStand)
-                {
-                    alreadyPresent++;
-                    continue;
-                }
+                if (hasTv && hasStand) continue;
 
                 if (!hasStand)
                 {
@@ -1054,7 +1102,7 @@ public static class HotelBlockoutBuilder
                     standInstance.transform.localPosition = Room304TvStandLocalPos;
                     standInstance.transform.localRotation = Room304TvStandLocalRot;
                     standInstance.transform.localScale = Vector3.one;
-                    Undo.RegisterCreatedObjectUndo(standInstance, "Add TV+Stand From Room 304 Reference");
+                    Undo.RegisterCreatedObjectUndo(standInstance, "Add TV+Stand");
                 }
 
                 if (!hasTv)
@@ -1064,34 +1112,16 @@ public static class HotelBlockoutBuilder
                     tvInstance.transform.localPosition = Room304TvLocalPos;
                     tvInstance.transform.localRotation = Room304TvLocalRot;
                     tvInstance.transform.localScale = Vector3.one;
-                    Undo.RegisterCreatedObjectUndo(tvInstance, "Add TV+Stand From Room 304 Reference");
+                    Undo.RegisterCreatedObjectUndo(tvInstance, "Add TV+Stand");
                 }
-
                 added++;
             }
         }
-
-        Debug.Log($"TV+스탠드 추가 완료: {added}개 방에 신규 추가, {alreadyPresent}개는 이미 있어서 건너뜀, {roomNotFound}개 방을 씬에서 못 찾음.");
-    }
-
-    // Removes only the old placeholder boxes (TV_Shelf, TV_Screen) left over from procedural
-    // generation, from every room's Furniture object. Touches nothing else.
-    [MenuItem("Tools/Hotel Blockout/Remove TV Placeholder Boxes")]
-    public static void RemoveTvPlaceholderBoxesMenu() => RemoveTvPlaceholderBoxes();
-
-    // Headless entry point: `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.RemoveTvPlaceholderBoxesAndSaveBatch`
-    public static void RemoveTvPlaceholderBoxesAndSaveBatch()
-    {
-        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
-        RemoveTvPlaceholderBoxes();
-        EditorSceneManager.SaveScene(scene);
-        Debug.Log("RemoveTvPlaceholderBoxesAndSaveBatch 완료: SampleScene에 저장됨.");
+        Debug.Log($"TV 및 스탠드 {added}개 방에 세팅 완료.");
     }
 
     static void RemoveTvPlaceholderBoxes()
     {
-        int removed = 0;
-
         for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
         {
             for (int d = 1; d <= 5; d++)
@@ -1104,36 +1134,12 @@ public static class HotelBlockoutBuilder
                 if (furniture == null) continue;
 
                 var shelf = furniture.Find("TV_Shelf");
-                if (shelf != null) { Undo.DestroyObjectImmediate(shelf.gameObject); removed++; }
+                if (shelf != null) Undo.DestroyObjectImmediate(shelf.gameObject);
 
                 var screen = furniture.Find("TV_Screen");
-                if (screen != null) { Undo.DestroyObjectImmediate(screen.gameObject); removed++; }
+                if (screen != null) Undo.DestroyObjectImmediate(screen.gameObject);
             }
         }
-
-        Debug.Log($"TV 플레이스홀더 박스 제거 완료: 총 {removed}개 오브젝트 삭제.");
-    }
-
-    // ===================================================================================
-    // Applies a carpet material (Assets/3rdParty/carpet) to every guest room's Floor object.
-    // Creates one shared, persisted Material asset and assigns it via sharedMaterial to each
-    // room's Floor — touches nothing else in the scene.
-    // ===================================================================================
-
-    const string CarpetDir = "Assets/3rdParty/carpet/";
-    const string CarpetMatPath = "Assets/3rdParty/carpet/Carpet_Floor_Mat.mat";
-    static readonly Vector2 CarpetTiling = new Vector2(10f, 8f);
-
-    [MenuItem("Tools/Hotel Blockout/Apply Carpet To Room Floors")]
-    public static void ApplyCarpetToRoomFloorsMenu() => ApplyCarpetToRoomFloors();
-
-    // Headless entry point: `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.ApplyCarpetToRoomFloorsAndSaveBatch`
-    public static void ApplyCarpetToRoomFloorsAndSaveBatch()
-    {
-        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
-        ApplyCarpetToRoomFloors();
-        EditorSceneManager.SaveScene(scene);
-        Debug.Log("ApplyCarpetToRoomFloorsAndSaveBatch 완료: SampleScene에 저장됨.");
     }
 
     static void ApplyCarpetToRoomFloors()
@@ -1141,7 +1147,89 @@ public static class HotelBlockoutBuilder
         var carpetMat = PrepareCarpetMaterial();
         if (carpetMat == null) return;
 
-        int applied = 0, roomNotFound = 0, floorNotFound = 0;
+        for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
+        {
+            for (int d = 1; d <= 5; d++)
+            {
+                string roomName = "Room_" + (floorNumber * 100 + d);
+                var roomGo = GameObject.Find(roomName);
+                if (roomGo == null) continue;
+
+                var floor = roomGo.transform.Find("Floor");
+                var renderer = floor != null ? floor.GetComponent<MeshRenderer>() : null;
+                if (renderer == null) continue;
+
+                Undo.RecordObject(renderer, "Apply Carpet To Room Floors");
+                renderer.sharedMaterial = carpetMat;
+            }
+        }
+    }
+
+    static void RemoveRoomFloors()
+    {
+        for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
+        {
+            for (int d = 1; d <= 5; d++)
+            {
+                string roomName = "Room_" + (floorNumber * 100 + d);
+                var roomGo = GameObject.Find(roomName);
+                if (roomGo == null) continue;
+
+                var floor = roomGo.transform.Find("Floor");
+                if (floor == null) continue;
+
+                Undo.DestroyObjectImmediate(floor.gameObject);
+            }
+        }
+    }
+
+    static void WireBedTextures()
+    {
+        string albedoPath = BedTexDir + "bed_basecolor.png";
+        string normalPath = BedTexDir + "bed_normal.png";
+        string combinedMrPath = BedTexDir + "bed_metallic_roughness.png";
+
+        var albedoTex = AssetDatabase.LoadAssetAtPath<Texture2D>(albedoPath);
+        if (albedoTex == null) return;
+
+        SetTextureType(normalPath, TextureImporterType.NormalMap);
+        var normalTex = AssetDatabase.LoadAssetAtPath<Texture2D>(normalPath);
+        var packed = GetOrCreatePackedTextureFromCombinedMR(combinedMrPath, BedTexDir + "Bed_MetallicSmoothness.png");
+
+        var mat = GetOrCreateCarpetMaterial(BedMatPath);
+        mat.mainTexture = albedoTex;
+        if (normalTex != null)
+        {
+            mat.SetTexture("_BumpMap", normalTex);
+            mat.EnableKeyword("_NORMALMAP");
+        }
+        if (packed != null)
+        {
+            mat.SetTexture("_MetallicGlossMap", packed);
+            mat.SetFloat("_Metallic", 1f);
+            mat.SetFloat("_GlossMapScale", 1f);
+            mat.EnableKeyword("_METALLICGLOSSMAP");
+        }
+        EditorUtility.SetDirty(mat);
+        AssetDatabase.SaveAssets();
+
+        var importer = AssetImporter.GetAtPath(BedFbxPath) as ModelImporter;
+        if (importer != null)
+        {
+            var id = new AssetImporter.SourceAssetIdentifier(typeof(Material), BedFbxMaterialName);
+            importer.AddRemap(id, mat);
+            importer.SaveAndReimport();
+        }
+    }
+
+    static void ReplaceBedsWithModel()
+    {
+        var bedSource = AssetDatabase.LoadAssetAtPath<GameObject>(BedSourcePath);
+        if (bedSource == null) return;
+
+        float bedX0 = 0f;
+        float bedZ0 = BathLength + BedClearance;
+        Vector3 targetFootprintCenter = new Vector3(bedX0 + BedWidth / 2f, 0f, bedZ0 + BedDepth / 2f);
 
         for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
         {
@@ -1149,19 +1237,153 @@ public static class HotelBlockoutBuilder
             {
                 string roomName = "Room_" + (floorNumber * 100 + d);
                 var roomGo = GameObject.Find(roomName);
-                if (roomGo == null) { roomNotFound++; continue; }
+                if (roomGo == null) continue;
 
-                var floor = roomGo.transform.Find("Floor");
-                var renderer = floor != null ? floor.GetComponent<MeshRenderer>() : null;
-                if (renderer == null) { floorNotFound++; continue; }
+                var oldBed = roomGo.transform.Find("Bed");
+                if (oldBed == null) continue;
 
-                Undo.RecordObject(renderer, "Apply Carpet To Room Floors");
-                renderer.sharedMaterial = carpetMat;
-                applied++;
+                Undo.DestroyObjectImmediate(oldBed.gameObject);
+
+                var bedWrapper = new GameObject("Bed");
+                bedWrapper.transform.SetParent(roomGo.transform, false);
+                Undo.RegisterCreatedObjectUndo(bedWrapper, "Replace Beds With Model");
+
+                PlaceBedInstance(bedSource, bedWrapper.transform, targetFootprintCenter);
             }
         }
+    }
 
-        Debug.Log($"카펫 적용 완료: {applied}개 방 바닥에 적용, {roomNotFound}개 방을 씬에서 못 찾음, {floorNotFound}개 방에서 Floor를 못 찾음.");
+    static void RemoveBedLightAndCamera()
+    {
+        var importer = AssetImporter.GetAtPath(BedSourcePath) as ModelImporter;
+        if (importer == null) return;
+
+        importer.importCameras = false;
+        importer.importLights = false;
+        importer.SaveAndReimport();
+    }
+
+
+    // ==========================================
+    // 7. 유틸리티 및 텍스처/머티리얼 헬퍼 메서드
+    // ==========================================
+    static GameObject[] FindAllFloorRoots()
+    {
+        var targets = new List<GameObject>();
+        for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
+        {
+            var go = GameObject.Find($"Floor{floorNumber}_Hotel");
+            if (go != null)
+                targets.Add(go);
+        }
+        return targets.ToArray();
+    }
+
+    static Texture2D GenerateMarbleTexture(Color baseColor)
+    {
+        const int size = 128;
+        var tex = new Texture2D(size, size, TextureFormat.RGB24, false);
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float vein = Mathf.PerlinNoise(x * 0.05f, y * 0.05f);
+                float detail = Mathf.PerlinNoise(x * 0.2f, y * 0.2f);
+                float shade = 0.82f + vein * 0.3f - detail * 0.1f;
+                tex.SetPixel(x, y, baseColor * shade);
+            }
+        }
+        tex.Apply();
+        tex.wrapMode = TextureWrapMode.Repeat;
+        return tex;
+    }
+
+    static Material NewStandardMaterial(Color color, float glossiness, float metallic, Texture2D texture = null, Vector2 tiling = default)
+    {
+        var mat = new Material(Shader.Find("Standard"));
+        mat.color = color;
+        mat.SetFloat("_Glossiness", glossiness);
+        mat.SetFloat("_Metallic", metallic);
+        if (texture != null)
+        {
+            mat.mainTexture = texture;
+            mat.mainTextureScale = tiling;
+        }
+        return mat;
+    }
+
+    static Texture2D GenerateWoodTexture(Color baseColor)
+    {
+        const int size = 128;
+        var tex = new Texture2D(size, size, TextureFormat.RGB24, false);
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float grain = Mathf.PerlinNoise(x * 0.06f, y * 0.6f);
+                float streak = Mathf.PerlinNoise(x * 0.4f, y * 0.02f);
+                float shade = 0.78f + grain * 0.35f - streak * 0.12f;
+                tex.SetPixel(x, y, baseColor * shade);
+            }
+        }
+        tex.Apply();
+        tex.wrapMode = TextureWrapMode.Repeat;
+        return tex;
+    }
+
+    static Texture2D GenerateFabricTexture(Color baseColor)
+    {
+        const int size = 64;
+        var tex = new Texture2D(size, size, TextureFormat.RGB24, false);
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float weave = Mathf.PerlinNoise(x * 0.35f, y * 0.35f);
+                float fine = Mathf.PerlinNoise(x * 1.6f, y * 1.6f);
+                float shade = 0.88f + weave * 0.16f + fine * 0.08f;
+                tex.SetPixel(x, y, baseColor * shade);
+            }
+        }
+        tex.Apply();
+        tex.wrapMode = TextureWrapMode.Repeat;
+        return tex;
+    }
+
+    static Texture2D GenerateCeramicTexture(Color baseColor)
+    {
+        const int size = 64;
+        var tex = new Texture2D(size, size, TextureFormat.RGB24, false);
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float mottle = Mathf.PerlinNoise(x * 0.15f, y * 0.15f);
+                float shade = 0.94f + mottle * 0.08f;
+                tex.SetPixel(x, y, baseColor * shade);
+            }
+        }
+        tex.Apply();
+        tex.wrapMode = TextureWrapMode.Repeat;
+        return tex;
+    }
+
+    static Texture2D GenerateMetalTexture(Color baseColor)
+    {
+        const int size = 64;
+        var tex = new Texture2D(size, size, TextureFormat.RGB24, false);
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float streak = Mathf.PerlinNoise(x * 2.2f, y * 0.06f);
+                float shade = 0.8f + streak * 0.35f;
+                tex.SetPixel(x, y, baseColor * shade);
+            }
+        }
+        tex.Apply();
+        tex.wrapMode = TextureWrapMode.Repeat;
+        return tex;
     }
 
     static Material PrepareCarpetMaterial()
@@ -1172,11 +1394,7 @@ public static class HotelBlockoutBuilder
         string heightPath = CarpetDir + "fabric_0012_height_1k.png";
 
         var colorTex = AssetDatabase.LoadAssetAtPath<Texture2D>(colorPath);
-        if (colorTex == null)
-        {
-            Debug.LogError($"카펫 텍스처를 찾을 수 없습니다: {colorPath}");
-            return null;
-        }
+        if (colorTex == null) return null;
 
         SetTextureType(normalPath, TextureImporterType.NormalMap);
         SetTextureLinear(aoPath);
@@ -1243,114 +1461,6 @@ public static class HotelBlockoutBuilder
         importer.SaveAndReimport();
     }
 
-    // Removes only the "Floor" object from every guest room. Touches nothing else.
-    [MenuItem("Tools/Hotel Blockout/Remove Room Floors")]
-    public static void RemoveRoomFloorsMenu() => RemoveRoomFloors();
-
-    // Headless entry point: `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.RemoveRoomFloorsAndSaveBatch`
-    public static void RemoveRoomFloorsAndSaveBatch()
-    {
-        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
-        RemoveRoomFloors();
-        EditorSceneManager.SaveScene(scene);
-        Debug.Log("RemoveRoomFloorsAndSaveBatch 완료: SampleScene에 저장됨.");
-    }
-
-    static void RemoveRoomFloors()
-    {
-        int removed = 0, roomNotFound = 0, floorNotFound = 0;
-
-        for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
-        {
-            for (int d = 1; d <= 5; d++)
-            {
-                string roomName = "Room_" + (floorNumber * 100 + d);
-                var roomGo = GameObject.Find(roomName);
-                if (roomGo == null) { roomNotFound++; continue; }
-
-                var floor = roomGo.transform.Find("Floor");
-                if (floor == null) { floorNotFound++; continue; }
-
-                Undo.DestroyObjectImmediate(floor.gameObject);
-                removed++;
-            }
-        }
-
-        Debug.Log($"Floor 제거 완료: {removed}개 방에서 삭제, {roomNotFound}개 방을 씬에서 못 찾음, {floorNotFound}개 방에서 Floor를 못 찾음.");
-    }
-
-    // ===================================================================================
-    // Wires up the bed model's loose texture files (which the FBX doesn't reference
-    // internally — they never got auto-linked) to a persisted material, then remaps the
-    // FBX's internal material to point at it. Touches only the bed asset, nothing else.
-    // ===================================================================================
-
-    const string BedFbxPath = "Assets/3rdParty/bed/source/model.fbx";
-    const string BedTexDir = "Assets/3rdParty/bed/textures/";
-    const string BedMatPath = "Assets/3rdParty/bed/Bed_Mat.mat";
-    const string BedFbxMaterialName = "Material_0";
-
-    [MenuItem("Tools/Hotel Blockout/Wire Bed Textures")]
-    public static void WireBedTexturesMenu() => WireBedTextures();
-
-    // Headless entry point: `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.WireBedTexturesAndSaveBatch`
-    public static void WireBedTexturesAndSaveBatch()
-    {
-        WireBedTextures();
-        Debug.Log("WireBedTexturesAndSaveBatch 완료.");
-    }
-
-    static void WireBedTextures()
-    {
-        string albedoPath = BedTexDir + "bed_basecolor.png";
-        string normalPath = BedTexDir + "bed_normal.png";
-        string combinedMrPath = BedTexDir + "bed_metallic_roughness.png";
-
-        var albedoTex = AssetDatabase.LoadAssetAtPath<Texture2D>(albedoPath);
-        if (albedoTex == null)
-        {
-            Debug.LogError($"침대 Albedo 텍스처를 찾을 수 없습니다: {albedoPath}");
-            return;
-        }
-
-        SetTextureType(normalPath, TextureImporterType.NormalMap);
-        var normalTex = AssetDatabase.LoadAssetAtPath<Texture2D>(normalPath);
-
-        // glTF metallic-roughness convention: G = Roughness, B = Metallic (R unused here).
-        var packed = GetOrCreatePackedTextureFromCombinedMR(combinedMrPath, BedTexDir + "Bed_MetallicSmoothness.png");
-
-        var mat = GetOrCreateCarpetMaterial(BedMatPath);
-        mat.mainTexture = albedoTex;
-        if (normalTex != null)
-        {
-            mat.SetTexture("_BumpMap", normalTex);
-            mat.EnableKeyword("_NORMALMAP");
-        }
-        if (packed != null)
-        {
-            mat.SetTexture("_MetallicGlossMap", packed);
-            mat.SetFloat("_Metallic", 1f);
-            mat.SetFloat("_GlossMapScale", 1f);
-            mat.EnableKeyword("_METALLICGLOSSMAP");
-        }
-        EditorUtility.SetDirty(mat);
-        AssetDatabase.SaveAssets();
-
-        var importer = AssetImporter.GetAtPath(BedFbxPath) as ModelImporter;
-        if (importer == null)
-        {
-            Debug.LogError($"침대 FBX importer를 찾을 수 없습니다: {BedFbxPath}");
-            return;
-        }
-        var id = new AssetImporter.SourceAssetIdentifier(typeof(Material), BedFbxMaterialName);
-        importer.AddRemap(id, mat);
-        importer.SaveAndReimport();
-
-        Debug.Log($"침대 텍스처 연결 완료: Albedo={albedoTex.name}, Normal={(normalTex != null ? normalTex.name : "none")}, Metallic/Smoothness 패킹 완료, FBX 재질({BedFbxMaterialName}) 리매핑 완료.");
-    }
-
-    // Splits one combined metallic-roughness image (G=Roughness, B=Metallic, glTF
-    // convention) into the RGB(metallic)+Alpha(smoothness) layout Standard expects.
     static Texture2D GetOrCreatePackedTextureFromCombinedMR(string combinedPath, string outputPath)
     {
         if (!System.IO.File.Exists(outputPath))
@@ -1358,8 +1468,7 @@ public static class HotelBlockoutBuilder
             SetTextureReadable(combinedPath);
             SetTextureLinear(combinedPath);
             var srcTex = AssetDatabase.LoadAssetAtPath<Texture2D>(combinedPath);
-            if (srcTex == null)
-                return null;
+            if (srcTex == null) return null;
 
             int w = srcTex.width, h = srcTex.height;
             var packed = new Texture2D(w, h, TextureFormat.RGBA32, false);
@@ -1382,118 +1491,12 @@ public static class HotelBlockoutBuilder
         return AssetDatabase.LoadAssetAtPath<Texture2D>(outputPath);
     }
 
-    // Packs metallic (from metallicPath, R channel) and inverted roughness (from
-    // roughnessPath, alpha = smoothness) into one texture — the layout Standard's metallic
-    // workflow expects. metallicPath may be null (flat 0 metallic). Caches the result as a
-    // real asset so repeat runs don't redo the per-pixel work.
-    static Texture2D GetOrCreatePackedTexture(string metallicPath, string roughnessPath, string outputPath)
-    {
-        if (!System.IO.File.Exists(outputPath))
-        {
-            if (!string.IsNullOrEmpty(metallicPath))
-                SetTextureLinear(metallicPath);
-            SetTextureLinear(roughnessPath);
-
-            Texture2D metallicTex = string.IsNullOrEmpty(metallicPath) ? null : AssetDatabase.LoadAssetAtPath<Texture2D>(metallicPath);
-            var roughTex = AssetDatabase.LoadAssetAtPath<Texture2D>(roughnessPath);
-            if (roughTex == null)
-                return null;
-
-            SetTextureReadable(roughnessPath);
-            if (!string.IsNullOrEmpty(metallicPath)) SetTextureReadable(metallicPath);
-            metallicTex = string.IsNullOrEmpty(metallicPath) ? null : AssetDatabase.LoadAssetAtPath<Texture2D>(metallicPath);
-            roughTex = AssetDatabase.LoadAssetAtPath<Texture2D>(roughnessPath);
-
-            int w = roughTex.width, h = roughTex.height;
-            var packed = new Texture2D(w, h, TextureFormat.RGBA32, false);
-            for (int y = 0; y < h; y++)
-            {
-                for (int x = 0; x < w; x++)
-                {
-                    float u = x / (float)w, v = y / (float)h;
-                    float metallic = metallicTex != null ? metallicTex.GetPixelBilinear(u, v).r : 0f;
-                    float rough = roughTex.GetPixel(x, y).r;
-                    packed.SetPixel(x, y, new Color(metallic, metallic, metallic, 1f - rough));
-                }
-            }
-            packed.Apply();
-            System.IO.File.WriteAllBytes(outputPath, packed.EncodeToPNG());
-            Object.DestroyImmediate(packed);
-            AssetDatabase.ImportAsset(outputPath, ImportAssetOptions.ForceUpdate);
-            SetTextureLinear(outputPath);
-        }
-        return AssetDatabase.LoadAssetAtPath<Texture2D>(outputPath);
-    }
-
     static void SetTextureReadable(string path)
     {
         if (AssetImporter.GetAtPath(path) is not TextureImporter importer || importer.isReadable)
             return;
         importer.isReadable = true;
         importer.SaveAndReimport();
-    }
-
-    // ===================================================================================
-    // Replaces every guest room's procedurally-built "Bed" object with the bed FBX model
-    // (Assets/3rdParty/bed), fixed at 1.5x scale, anchored to the same floor footprint the
-    // old procedural bed occupied. Only ever touches each room's "Bed" object.
-    // ===================================================================================
-
-    const string BedSourcePath = "Assets/3rdParty/bed/source/model.fbx";
-    const float BedModelScale = 1.5f;
-
-    [MenuItem("Tools/Hotel Blockout/Replace Beds With Model")]
-    public static void ReplaceBedsWithModelMenu() => ReplaceBedsWithModel();
-
-    // Headless entry point: `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.ReplaceBedsWithModelAndSaveBatch`
-    public static void ReplaceBedsWithModelAndSaveBatch()
-    {
-        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
-        ReplaceBedsWithModel();
-        EditorSceneManager.SaveScene(scene);
-        Debug.Log("ReplaceBedsWithModelAndSaveBatch 완료: SampleScene에 저장됨.");
-    }
-
-    static void ReplaceBedsWithModel()
-    {
-        var bedSource = AssetDatabase.LoadAssetAtPath<GameObject>(BedSourcePath);
-        if (bedSource == null)
-        {
-            Debug.LogError($"침대 모델을 찾을 수 없습니다: {BedSourcePath}");
-            return;
-        }
-
-        // Same footprint BuildBed() used to place the procedural bed at, so the new model
-        // lands in exactly the same spot every old bed occupied.
-        float bedX0 = 0f;
-        float bedZ0 = BathLength + BedClearance;
-        Vector3 targetFootprintCenter = new Vector3(bedX0 + BedWidth / 2f, 0f, bedZ0 + BedDepth / 2f);
-
-        int replaced = 0, roomNotFound = 0, bedNotFound = 0;
-
-        for (int floorNumber = 1; floorNumber <= 5; floorNumber++)
-        {
-            for (int d = 1; d <= 5; d++)
-            {
-                string roomName = "Room_" + (floorNumber * 100 + d);
-                var roomGo = GameObject.Find(roomName);
-                if (roomGo == null) { roomNotFound++; continue; }
-
-                var oldBed = roomGo.transform.Find("Bed");
-                if (oldBed == null) { bedNotFound++; continue; }
-
-                Undo.DestroyObjectImmediate(oldBed.gameObject);
-
-                var bedWrapper = new GameObject("Bed");
-                bedWrapper.transform.SetParent(roomGo.transform, false);
-                Undo.RegisterCreatedObjectUndo(bedWrapper, "Replace Beds With Model");
-
-                PlaceBedInstance(bedSource, bedWrapper.transform, targetFootprintCenter);
-                replaced++;
-            }
-        }
-
-        Debug.Log($"침대 교체 완료: {replaced}개 방, {roomNotFound}개 방을 씬에서 못 찾음, {bedNotFound}개 방에서 기존 Bed를 못 찾음.");
     }
 
     static void PlaceBedInstance(GameObject bedSource, Transform parent, Vector3 targetFootprintCenter)
@@ -1508,10 +1511,6 @@ public static class HotelBlockoutBuilder
         float sizeX = Mathf.Max(rawBounds.size.x, 0.001f);
         float sizeZ = Mathf.Max(rawBounds.size.z, 0.001f);
 
-        // Best-effort orientation guess: line the model's longer horizontal axis (assumed
-        // head-to-foot) up with the room's X axis, matching the old procedural bed's layout.
-        // Can't visually preview the model here — check in the Editor and rotate 180 if the
-        // headboard ends up facing the wrong way.
         bool needsRotation = sizeZ > sizeX;
         instance.transform.localRotation = needsRotation ? Quaternion.Euler(0f, 90f, 0f) : Quaternion.identity;
         instance.transform.localScale = Vector3.one * BedModelScale;
@@ -1539,34 +1538,38 @@ public static class HotelBlockoutBuilder
         return b;
     }
 
-    // Removes the stray Light/Camera the bed FBX brought in (leftover from the Blender
-    // scene, not part of the actual bed). Fixing this at the model importer means every
-    // existing Bed_Model instance updates automatically — no per-room scene edits needed.
-    [MenuItem("Tools/Hotel Blockout/Remove Bed Light And Camera")]
-    public static void RemoveBedLightAndCameraMenu() => RemoveBedLightAndCamera();
-
-    // Headless entry point: `Unity.exe -batchmode -executeMethod HotelBlockoutBuilder.RemoveBedLightAndCameraAndSaveBatch`
-    public static void RemoveBedLightAndCameraAndSaveBatch()
+    static GameObject MakeBox(string name, Transform parent, Vector3 localPosition, Vector3 size)
     {
-        var scene = EditorSceneManager.OpenScene("Assets/Scenes/SampleScene.unity", OpenSceneMode.Single);
-        RemoveBedLightAndCamera();
-        EditorSceneManager.SaveScene(scene);
-        Debug.Log("RemoveBedLightAndCameraAndSaveBatch 완료: SampleScene에 저장됨.");
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        go.name = name;
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = localPosition;
+        go.transform.localScale = size;
+        Undo.RegisterCreatedObjectUndo(go, "Build Hotel Blockout");
+        return go;
     }
 
-    static void RemoveBedLightAndCamera()
+    static GameObject MakeCylinder(string name, Transform parent, Vector3 localPosition, float diameter, float height)
     {
-        var importer = AssetImporter.GetAtPath(BedSourcePath) as ModelImporter;
-        if (importer == null)
-        {
-            Debug.LogError($"침대 FBX importer를 찾을 수 없습니다: {BedSourcePath}");
-            return;
-        }
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        go.name = name;
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = localPosition;
+        go.transform.localScale = new Vector3(diameter, height / 2f, diameter);
+        Undo.RegisterCreatedObjectUndo(go, "Build Hotel Blockout");
+        return go;
+    }
 
-        importer.importCameras = false;
-        importer.importLights = false;
-        importer.SaveAndReimport();
+    static void ClearExisting(string name)
+    {
+        var existing = GameObject.Find(name);
+        if (existing != null)
+            Object.DestroyImmediate(existing);
+    }
 
-        Debug.Log("침대 모델에서 Light/Camera 임포트 비활성화 완료 (importCameras=false, importLights=false). 모든 방의 Bed_Model 인스턴스에 자동 반영됩니다.");
+    static void FocusOn(GameObject go)
+    {
+        Selection.activeGameObject = go;
+        SceneView.lastActiveSceneView?.FrameSelected();
     }
 }
