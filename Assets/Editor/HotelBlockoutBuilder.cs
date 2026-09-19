@@ -64,20 +64,20 @@ public static class HotelBlockoutBuilder
     const float TvShelfHeight = 0.5f;
     const float TvShelfElevation = 1f;
 
-    const float TubCenterX = 1.5f;
-    const float TubCenterZ = 0.65f;
+    const float TubCenterX = 2.8f;
+    const float TubCenterZ = 0.8f;
     const float TubWidth = 2.6f;
     const float TubDepth = 0.9f;
     const float TubHeight = 0.5f;
     const float CurtainHeight = 2f;
-    const float SinkCenterX = 0.65f;
+    const float SinkCenterX = 0.23f;
     const float SinkCenterZ = 2.1f;
     const float SinkWidth = 0.9f;
     const float SinkDepth = 0.6f;
     const float SinkHeight = 0.85f;
     const float MirrorHeight = 0.8f;
-    const float MirrorElevation = 1f;
-    const float ToiletCenterX = 2.65f;
+    const float MirrorElevation = 1.4f;
+    const float ToiletCenterX = 2.9f;
     const float ToiletCenterZ = 1.7f;
     const float ToiletWidth = 0.7f;
     const float ToiletDepth = 0.8f;
@@ -640,55 +640,159 @@ public static class HotelBlockoutBuilder
 
     static void BuildBathroomFixtures(Transform bathroom)
     {
-        MakeBox("Tub", bathroom,
-            new Vector3(TubCenterX, TubHeight / 2f, TubCenterZ),
-            new Vector3(TubWidth, TubHeight, TubDepth));
+        // --- 1. 욕조 및 커튼 일체형 에셋 로드 ---
+        string bathPrefabPath = "Assets/3rdParty/bath/Bathtub.blend";
+        GameObject bathPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(bathPrefabPath);
 
-        float tubFaucetX = TubCenterX - TubWidth / 2f + 0.3f;
-        MakeCylinder("Tub_Faucet", bathroom,
-            new Vector3(tubFaucetX, TubHeight + 0.12f, TubCenterZ - TubDepth / 2f + 0.05f), 0.04f, 0.22f);
-
-        float curtainZ = TubCenterZ + TubDepth / 2f; 
-        const int curtainFolds = 7;
-        float foldWidth = TubWidth / curtainFolds;
-        for (int i = 0; i < curtainFolds; i++)
+        if (bathPrefab == null)
         {
-            float foldX = TubCenterX - TubWidth / 2f + foldWidth * (i + 0.5f);
-            float foldZ = curtainZ + (i % 2 == 0 ? 0.018f : -0.018f);
-            MakeBox($"Curtain_Fold_{i:00}", bathroom,
-                new Vector3(foldX, CurtainHeight / 2f, foldZ),
-                new Vector3(foldWidth * 0.92f, CurtainHeight, 0.04f));
+            // .fbx 파일일 경우 대비 예외 처리
+            bathPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/3rdParty/bath/Bathtub.fbx");
         }
 
-        MakeCylinder("Sink_Pedestal", bathroom,
-            new Vector3(SinkCenterX, 0.325f, SinkCenterZ), 0.12f, 0.65f);
-        MakeCylinder("Sink_Basin", bathroom,
-            new Vector3(SinkCenterX, 0.68f, SinkCenterZ), Mathf.Min(SinkWidth, SinkDepth) * 0.9f, 0.12f);
-        MakeBox("Sink_Backsplash", bathroom,
-            new Vector3(0.15f, 0.75f, SinkCenterZ),
-            new Vector3(0.05f, 0.15f, SinkDepth));
-        MakeCylinder("Sink_Faucet", bathroom,
-            new Vector3(0.3f, 0.85f, SinkCenterZ), 0.03f, 0.15f);
+        if (bathPrefab != null)
+        {
+            GameObject tubObj = PrefabUtility.InstantiatePrefab(bathPrefab, bathroom) as GameObject;
+            tubObj.name = "Bathtub";
 
-        MakeBox("Mirror", bathroom, 
-            new Vector3(0.03f, MirrorElevation + MirrorHeight / 2f, SinkCenterZ),
-            new Vector3(0.06f, MirrorHeight, SinkDepth));
-        MakeBox("Mirror_Frame_Top", bathroom,
-            new Vector3(0.05f, MirrorElevation + MirrorHeight + 0.02f, SinkCenterZ),
-            new Vector3(0.1f, 0.04f, SinkDepth + 0.06f));
-        MakeBox("Mirror_Frame_Bottom", bathroom,
-            new Vector3(0.05f, MirrorElevation - 0.02f, SinkCenterZ),
-            new Vector3(0.1f, 0.04f, SinkDepth + 0.06f));
+            // 스크린샷 인스펙터 수치 반영 (Rotation X: -90, Y: -90, Scale: 1)
+            tubObj.transform.localPosition = new Vector3(TubCenterX, 0f, TubCenterZ);
+            tubObj.transform.localRotation = Quaternion.Euler(-90f, 90f, 0f);
+            tubObj.transform.localScale = new Vector3(1f, 1.7f, 1.1f);
 
-        float toiletBowlX = ToiletCenterX - 0.1f;
-        MakeBox("Toilet_Tank", bathroom,
-            new Vector3(ToiletCenterX + ToiletWidth / 2f - 0.08f, 0.55f, ToiletCenterZ),
-            new Vector3(0.16f, 0.4f, ToiletDepth * 0.75f));
-        MakeCylinder("Toilet_Bowl", bathroom,
-            new Vector3(toiletBowlX, 0.19f, ToiletCenterZ), 0.5f, 0.38f);
-        MakeBox("Toilet_Seat", bathroom,
-            new Vector3(toiletBowlX, 0.4f, ToiletCenterZ),
-            new Vector3(0.42f, 0.04f, ToiletDepth * 0.9f));
+            Undo.RegisterCreatedObjectUndo(tubObj, "Build Hotel Blockout");
+        }
+        else
+        {
+            // 예외 처리 (에셋 미로드 시 기존 블록아웃 대체)
+            MakeBox("Tub", bathroom,
+                new Vector3(TubCenterX, TubHeight / 2f, TubCenterZ),
+                new Vector3(TubWidth, TubHeight, TubDepth));
+
+            float tubFaucetX = TubCenterX - TubWidth / 2f + 0.3f;
+            MakeCylinder("Tub_Faucet", bathroom,
+                new Vector3(tubFaucetX, TubHeight + 0.12f, TubCenterZ - TubDepth / 2f + 0.05f), 0.04f, 0.22f);
+
+            float curtainZ = TubCenterZ + TubDepth / 2f; 
+            const int curtainFolds = 7;
+            float foldWidth = TubWidth / curtainFolds;
+            for (int i = 0; i < curtainFolds; i++)
+            {
+                float foldX = TubCenterX - TubWidth / 2f + foldWidth * (i + 0.5f);
+                float foldZ = curtainZ + (i % 2 == 0 ? 0.018f : -0.018f);
+                MakeBox($"Curtain_Fold_{i:00}", bathroom,
+                    new Vector3(foldX, CurtainHeight / 2f, foldZ),
+                    new Vector3(foldWidth * 0.92f, CurtainHeight, 0.04f));
+            }
+        }
+
+        // --- 2. 세면대 에셋 로드 ---
+        string sinkPrefabPath = "Assets/3rdParty/Sink/Vessel_Sink_with_Armature.prefab";
+        GameObject sinkPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(sinkPrefabPath);
+
+        if (sinkPrefab == null)
+        {
+            sinkPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/3rdParty/Sink/Vessel_Sink_with_Armature.fbx");
+            if (sinkPrefab == null)
+            {
+                sinkPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/3rdParty/Sink/Vessel_Sink_with_Armature.blend");
+            }
+        }
+
+        if (sinkPrefab != null)
+        {
+            GameObject sinkObj = PrefabUtility.InstantiatePrefab(sinkPrefab, bathroom) as GameObject;
+            sinkObj.name = "Vessel_Sink";
+
+            // 스크린샷 인스펙터 수치 반영 (Rotation 0, Scale 1)
+            sinkObj.transform.localPosition = new Vector3(SinkCenterX, -0.2f, SinkCenterZ);
+            sinkObj.transform.localRotation = Quaternion.Euler(0f, -180f, 0f);
+            sinkObj.transform.localScale = Vector3.one;
+
+            Undo.RegisterCreatedObjectUndo(sinkObj, "Build Hotel Blockout");
+        }
+        else
+        {
+            // 예외 처리 (에셋 미로드 시 기존 블록아웃 대체)
+            MakeCylinder("Sink_Pedestal", bathroom,
+                new Vector3(SinkCenterX, 0.325f, SinkCenterZ), 0.12f, 0.65f);
+            MakeCylinder("Sink_Basin", bathroom,
+                new Vector3(SinkCenterX, 0.68f, SinkCenterZ), Mathf.Min(SinkWidth, SinkDepth) * 0.9f, 0.12f);
+            MakeBox("Sink_Backsplash", bathroom,
+                new Vector3(0.15f, 0.75f, SinkCenterZ),
+                new Vector3(0.05f, 0.15f, SinkDepth));
+            MakeCylinder("Sink_Faucet", bathroom,
+                new Vector3(0.3f, 0.85f, SinkCenterZ), 0.03f, 0.15f);
+        }
+
+        // --- 3. 거울 에셋 로드 ---
+        string mirrorPrefabPath = "Assets/3rdParty/Mirror/Mirror.blend";
+        GameObject mirrorPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(mirrorPrefabPath);
+
+        if (mirrorPrefab == null)
+        {
+            mirrorPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/3rdParty/Mirror/Mirror.fbx");
+        }
+
+        if (mirrorPrefab != null)
+        {
+            GameObject mirrorObj = PrefabUtility.InstantiatePrefab(mirrorPrefab, bathroom) as GameObject;
+            mirrorObj.name = "Mirror";
+
+            // 스크린샷 인스펙터 수치 반영 (Rotation Y: -90, Scale: 1)
+            mirrorObj.transform.localPosition = new Vector3(1.05f, MirrorElevation, SinkCenterZ);
+            mirrorObj.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+            mirrorObj.transform.localScale = Vector3.one;
+
+            Undo.RegisterCreatedObjectUndo(mirrorObj, "Build Hotel Blockout");
+        }
+        else
+        {
+            // 예외 처리 (에셋 미로드 시 기존 블록아웃 대체)
+            MakeBox("Mirror", bathroom, 
+                new Vector3(0.03f, MirrorElevation + MirrorHeight / 2f, SinkCenterZ),
+                new Vector3(0.06f, MirrorHeight, SinkDepth));
+            MakeBox("Mirror_Frame_Top", bathroom,
+                new Vector3(0.05f, MirrorElevation + MirrorHeight + 0.02f, SinkCenterZ),
+                new Vector3(0.1f, 0.04f, SinkDepth + 0.06f));
+            MakeBox("Mirror_Frame_Bottom", bathroom,
+                new Vector3(0.05f, MirrorElevation - 0.02f, SinkCenterZ),
+                new Vector3(0.1f, 0.04f, SinkDepth + 0.06f));
+        }
+
+        // --- 4. 변기 에셋 로드 ---
+        string toiletPrefabPath = "Assets/3rdParty/Toilet/Toilet.prefab";
+        GameObject toiletPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(toiletPrefabPath);
+
+        if (toiletPrefab == null)
+        {
+            toiletPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/3rdParty/Toilet/Toilet.fbx");
+        }
+
+        if (toiletPrefab != null)
+        {
+            GameObject toiletObj = PrefabUtility.InstantiatePrefab(toiletPrefab, bathroom) as GameObject;
+            toiletObj.name = "Toilet";
+
+            toiletObj.transform.localPosition = new Vector3(ToiletCenterX, 0f, ToiletCenterZ);
+            toiletObj.transform.localRotation = Quaternion.Euler(0f, -90f, 0f);
+            toiletObj.transform.localScale = Vector3.one;
+
+            Undo.RegisterCreatedObjectUndo(toiletObj, "Build Hotel Blockout");
+        }
+        else
+        {
+            // 예외 처리 (에셋 미로드 시 기존 블록아웃 대체)
+            float toiletBowlX = ToiletCenterX - 0.1f;
+            MakeBox("Toilet_Tank", bathroom,
+                new Vector3(ToiletCenterX + ToiletWidth / 2f - 0.08f, 0.55f, ToiletCenterZ),
+                new Vector3(0.16f, 0.4f, ToiletDepth * 0.75f));
+            MakeCylinder("Toilet_Bowl", bathroom,
+                new Vector3(toiletBowlX, 0.19f, ToiletCenterZ), 0.5f, 0.38f);
+            MakeBox("Toilet_Seat", bathroom,
+                new Vector3(toiletBowlX, 0.4f, ToiletCenterZ),
+                new Vector3(0.42f, 0.04f, ToiletDepth * 0.9f));
+        }
     }
 
     static void BuildRoomFurniture(Transform parent)
